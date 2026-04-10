@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pip --version)",
+      "Bash(pip --version)",
+      "Bash(pip3 --version)",
+      "Bash(pip install:*)",
+      "Bash(python -c \"from flask import Flask; from flask_socketio import SocketIO; from PyQt5.QtWidgets import QApplication; from pymavlink import mavutil; import eventlet; print\\('All imports OK'\\)\")",
+      "Bash(where python:*)",
+      "Read(//c/Users/balin/AppData/Local/Microsoft/WindowsApps//**)",
+      "Bash(\"/c/Users/balin/AppData/Local/Microsoft/WindowsApps/python3.12.exe\" -c \"from flask import Flask; from flask_socketio import SocketIO; from PyQt5.QtWidgets import QApplication; from pymavlink import mavutil; import eventlet; print\\('All imports OK'\\)\")",
+      "Bash(\"/c/Users/balin/AppData/Local/Microsoft/WindowsApps/python3.12.exe\" -m venv \"g:/_px4_live_telemetry_dashboard_/qgc-px4-live-telemetry-dashboard/.venv\")",
+      "Bash(\"g:/_px4_live_telemetry_dashboard_/qgc-px4-live-telemetry-dashboard/.venv/Scripts/pip.exe\" install:*)",
+      "Bash(\"g:/_px4_live_telemetry_dashboard_/qgc-px4-live-telemetry-dashboard/.venv/Scripts/python.exe\" -c \"from flask import Flask; from flask_socketio import SocketIO; from PyQt5.QtWidgets import QApplication; from pymavlink import mavutil; import eventlet; print\\('All imports OK'\\)\")"
+    ]
+  }
+}

@@ -1,70 +1,12 @@
 import sys
-import threading
 from flask import Flask
-from flask_socketio import SocketIO
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QGroupBox, QPushButton, QComboBox
+    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit
 )
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QFont
 from pymavlink import mavutil
-
-# --- WEBSZERVER KONFIGURÁCIÓ ---
-flask_app = Flask(__name__)
-socketio = SocketIO(flask_app, cors_allowed_origins="*", async_mode='eventlet')
-# Ez a HTML kód fog megjelenni a telefonodon
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Drone Mobile Link</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { background-color: #111; color: #2ecc71; font-family: sans-serif; text-align: center; padding: 10px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .card { background: #222; border: 1px solid #333; padding: 15px; border-radius: 10px; }
-        .label { font-size: 0.8em; color: #888; text-transform: uppercase; }
-        .value { font-size: 1.8em; font-weight: bold; display: block; margin-top: 5px; }
-        h2 { color: #f1c40f; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
-    </style>
-</head>
-<body>
-    <h2>MOBILE TELEMETRY</h2>
-    <div class="grid" id="data-grid">
-        <div class="card"> <span class="label">Feszültség</span> <span class="value" id="volt">--</span> </div>
-        <div class="card"> <span class="label">Áram</span> <span class="value" id="curr">--</span> </div>
-        <div class="card"> <span class="label">Állapot</span> <span class="value" id="arm">--</span> </div>
-        <div class="card"> <span class="label">Lidar</span> <span class="value" id="lidar">--</span> </div>
-        <div class="card"> <span class="label">Magasság</span> <span class="value" id="alt">--</span> </div>
-        <div class="card"> <span class="label">Műhold</span> <span class="value" id="gps">--</span> </div>
-    </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socketio/4.0.1/socket.io.js"></script>
-    <script>
-        var socket = io();
-        socket.on('update', function(data) {
-            if(data.volt) document.getElementById('volt').innerText = data.volt;
-            if(data.curr) document.getElementById('curr').innerText = data.curr;
-            if(data.arm) document.getElementById('arm').innerText = data.arm;
-            if(data.lidar) document.getElementById('lidar').innerText = data.lidar;
-            if(data.alt) document.getElementById('alt').innerText = data.alt;
-            if(data.gps) document.getElementById('gps').innerText = data.gps;
-        });
-    </script>
-</body>
-</html>
-"""
-
-
-@flask_app.route('/')
-def index():
-    return HTML_TEMPLATE
-
-
-def run_flask():
-    # Az allow_unsafe_werkzeug=True kiküszöböli a hibát, ha nincs eventlet,
-    # de az eventlettel lesz igazán stabil.
-    socketio.run(flask_app, host='0.0.0.0', port=5000, log_output=False, allow_unsafe_werkzeug=True)
 
 
 # --- EREDETI DASHBOARD KIBŐVÍTVE ---
@@ -72,7 +14,7 @@ class CompactDynamicDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
         # ... (Az összes UI beállításod változatlan marad az eredeti kódból) ...
-        self.setWindowTitle("PX4 Server & Mobile Bridge")
+        self.setWindowTitle("PX4 live info bridge")
         self.resize(1200, 550)
         self.setStyleSheet("""
             QMainWindow, QWidget { background-color: #1a1a1a; color: #ecf0f1; font-family: Consolas, Arial; }
@@ -83,20 +25,23 @@ class CompactDynamicDashboard(QMainWindow):
 
         self.master = None
         self.is_connected = False
+        self.is_connecting = False
         self.raw_telemetry = {}
         self.display_to_raw = {}
         self.last_combo_keys = []
         self.friendly_names = {
-            "SYS_STATUS.voltage_battery": "Akkufeszültség",
-            "SYS_STATUS.current_battery": "Áramfelvétel",
-            "DISTANCE_SENSOR.current_distance": "Lidar távolság",
-            "VFR_HUD.alt": "Relatív magasság",
-            "GPS_RAW_INT.satellites_visible": "GPS műholdak"
+            "SYS_STATUS.voltage_battery": "Batt. Voltage",
+            "SYS_STATUS.current_battery": "Batt. Current",
+            "DISTANCE_SENSOR.current_distance": "Lidar distance",
+            "VFR_HUD.alt": "Relative altitude",
+            "GPS_RAW_INT.satellites_visible": "GPS Sat. visible"
         }
         self.dynamic_panels = []
         self.setup_ui()
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_data)
+        self.connect_timer = QTimer()
+        self.connect_timer.timeout.connect(self.try_heartbeat)
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -104,18 +49,27 @@ class CompactDynamicDashboard(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
 
         top_bar = QHBoxLayout()
-        self.btn_connect = QPushButton("KAPCSOLÓDÁS (UDP:14551)")
+        top_bar.setSpacing(16)
+
+        self.input_ip = QLineEdit("127.0.0.1")
+        self.input_ip.setStyleSheet("background-color: #2c3e50; color: white; padding: 8px 10px; font-size: 14px; border: 1px solid #4a6278; border-radius: 4px;")
+        self.input_ip.setFixedWidth(160)
+        self.input_port = QLineEdit("14551")
+        self.input_port.setStyleSheet("background-color: #2c3e50; color: white; padding: 8px 10px; font-size: 14px; border: 1px solid #4a6278; border-radius: 4px;")
+        self.input_port.setFixedWidth(90)
+        self.btn_connect = QPushButton("Connect (UDP)")
         self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
         self.btn_connect.clicked.connect(self.toggle_connection)
+        top_bar.addWidget(self.input_ip)
+        top_bar.addWidget(self.input_port)
         top_bar.addWidget(self.btn_connect)
-        self.lbl_status = QLabel("SERVER ACTIVE - PORT 5000")
-        top_bar.addWidget(self.lbl_status)
+        top_bar.addStretch()
         main_layout.addLayout(top_bar)
 
         status_row = QHBoxLayout()
-        self.card_voltage = self.create_fixed_card("Feszültség", "0.00 V", "#f1c40f")
-        self.card_current = self.create_fixed_card("Áram", "0.0 A", "#f39c12")
-        self.card_arm = self.create_fixed_card("Állapot", "DISARMED", "#2ecc71")
+        self.card_voltage = self.create_fixed_card("Voltage", "0.00 V", "#f1c40f")
+        self.card_current = self.create_fixed_card("Current", "0.0 A", "#f39c12")
+        self.card_arm = self.create_fixed_card("Status", "DISARMED", "#2ecc71")
         self.card_mode = self.create_fixed_card("Flight Mode", "--", "#3498db")
         status_row.addWidget(self.card_voltage);
         status_row.addWidget(self.card_current)
@@ -126,6 +80,7 @@ class CompactDynamicDashboard(QMainWindow):
         dynamic_row = QHBoxLayout()
         default_raw_keys = ["VFR_HUD.alt", "DISTANCE_SENSOR.current_distance", "GPS_RAW_INT.satellites_visible",
                             "ATTITUDE.yaw"]
+        
         for i in range(4):
             panel = self.create_dynamic_card()
             self.dynamic_panels.append(panel)
@@ -146,7 +101,7 @@ class CompactDynamicDashboard(QMainWindow):
         return group
 
     def create_dynamic_card(self):
-        group = QGroupBox("Szabad mező");
+        group = QGroupBox("Empty field");
         layout = QVBoxLayout()
         combo = QComboBox();
         layout.addWidget(combo)
@@ -159,17 +114,41 @@ class CompactDynamicDashboard(QMainWindow):
         return {"group": group, "combo": combo, "label": lbl, "default_raw": None}
 
     def toggle_connection(self):
-        if not self.is_connected:
+        if not self.is_connected and not self.is_connecting:
             try:
-                self.master = mavutil.mavlink_connection("udp:127.0.0.1:14551")
-                self.is_connected = True
-                self.btn_connect.setText("KAPCSOLAT BONTÁSA")
-                self.timer.start(50)
+                ip = self.input_ip.text().strip()
+                port = self.input_port.text().strip()
+                self.master = mavutil.mavlink_connection(f"udp:{ip}:{port}")
+                self.is_connecting = True
+                self.input_ip.setEnabled(False)
+                self.input_port.setEnabled(False)
+                self.btn_connect.setText("Connecting...")
+                self.btn_connect.setStyleSheet("background-color: #e67e22; color: white;")
+                self.connect_timer.start(200)
             except Exception as e:
                 print(e)
         else:
             self.is_connected = False
+            self.is_connecting = False
+            self.connect_timer.stop()
             self.timer.stop()
+            self.input_ip.setEnabled(True)
+            self.input_port.setEnabled(True)
+            self.btn_connect.setText("Connect (UDP)")
+            self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
+
+    def try_heartbeat(self):
+        try:
+            msg = self.master.recv_match(type='HEARTBEAT', blocking=False)
+            if msg:
+                self.is_connecting = False
+                self.is_connected = True
+                self.connect_timer.stop()
+                self.btn_connect.setText("Disconnect")
+                self.btn_connect.setStyleSheet("background-color: #c0392b; color: white;")
+                self.timer.start(50)
+        except Exception as e:
+            print(f"Heartbeat error: {e}")
 
     def refresh_combo_sources(self):
         raw_keys = sorted(self.raw_telemetry.keys())
@@ -216,25 +195,14 @@ class CompactDynamicDashboard(QMainWindow):
             self.card_voltage.value_label.setText(v)
             self.card_current.value_label.setText(a)
 
-            # ADATKÜLDÉS A TELEFONRA
-            socketio.emit('update', {
-                'volt': v, 'curr': a, 'lidar': l,
-                'alt': f"{alt}m", 'gps': f"{gps}db",
-                'arm': "ARMED" if (self.raw_telemetry.get("HEARTBEAT.base_mode", 0) & 128) else "DISARMED"
-            })
-
             for panel in self.dynamic_panels:
                 rk = self.display_to_raw.get(panel["combo"].currentText())
                 if rk: panel["label"].setText(self.format_value(rk, self.raw_telemetry.get(rk)))
 
         except Exception as e:
-            print(f"Hiba: {e}")
-
+            print(f"Error: {e}")
 
 if __name__ == "__main__":
-    # Indítjuk a webes hidat egy külön szálon
-    threading.Thread(target=run_flask, daemon=True).start()
-
     app = QApplication(sys.argv)
     window = CompactDynamicDashboard()
     window.show()
