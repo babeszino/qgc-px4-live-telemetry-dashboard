@@ -1,5 +1,7 @@
 import sys
-from flask import Flask
+import csv
+import os
+from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit
@@ -8,16 +10,13 @@ from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QFont
 from pymavlink import mavutil
 
-
-# --- EREDETI DASHBOARD KIBŐVÍTVE ---
 class CompactDynamicDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
-        # ... (Az összes UI beállításod változatlan marad az eredeti kódból) ...
         self.setWindowTitle("PX4 live info bridge")
         self.resize(1200, 550)
         self.setStyleSheet("""
-            QMainWindow, QWidget { background-color: #1a1a1a; color: #ecf0f1; font-family: Consolas, Arial; }
+            QMainWindow, QWidget { background-color: #0a0a0a; color: #ecf0f1; font-family: Consolas, Arial; }
             QGroupBox { border: 2px solid #34495e; border-radius: 6px; margin-top: 10px; font-weight: bold; }
             QComboBox { background-color: #34495e; color: white; padding: 6px; font-size: 12px; }
             QPushButton { padding: 12px; font-weight: bold; font-size: 14px; border-radius: 5px; }
@@ -26,6 +25,9 @@ class CompactDynamicDashboard(QMainWindow):
         self.master = None
         self.is_connected = False
         self.is_connecting = False
+        self.log_file = None
+        self.log_writer = None
+        self.log_columns = None
         self.raw_telemetry = {}
         self.display_to_raw = {}
         self.last_combo_keys = []
@@ -42,6 +44,8 @@ class CompactDynamicDashboard(QMainWindow):
         self.timer.timeout.connect(self.update_data)
         self.connect_timer = QTimer()
         self.connect_timer.timeout.connect(self.try_heartbeat)
+        self.log_timer = QTimer()
+        self.log_timer.timeout.connect(self.write_log_row)
 
     def setup_ui(self):
         central_widget = QWidget()
@@ -132,6 +136,7 @@ class CompactDynamicDashboard(QMainWindow):
             self.is_connecting = False
             self.connect_timer.stop()
             self.timer.stop()
+            self.stop_logging()
             self.input_ip.setEnabled(True)
             self.input_port.setEnabled(True)
             self.btn_connect.setText("Connect (UDP)")
@@ -147,8 +152,37 @@ class CompactDynamicDashboard(QMainWindow):
                 self.btn_connect.setText("Disconnect")
                 self.btn_connect.setStyleSheet("background-color: #c0392b; color: white;")
                 self.timer.start(50)
+                self.start_logging()
         except Exception as e:
             print(f"Heartbeat error: {e}")
+
+    def start_logging(self):
+        os.makedirs("logs", exist_ok=True)
+        filename = datetime.now().strftime("logs/flight_%Y-%m-%d_%H-%M-%S.csv")
+        self.log_file = open(filename, "w", newline="")
+        self.log_columns = None
+        self.log_writer = None
+        self.log_timer.start(1000)
+
+    def stop_logging(self):
+        self.log_timer.stop()
+        if self.log_file:
+            self.log_file.close()
+            self.log_file = None
+            self.log_writer = None
+            self.log_columns = None
+
+    def write_log_row(self):
+        if not self.raw_telemetry or not self.log_file:
+            return
+        if self.log_columns is None:
+            self.log_columns = ["timestamp"] + sorted(self.raw_telemetry.keys())
+            self.log_writer = csv.DictWriter(self.log_file, fieldnames=self.log_columns, extrasaction="ignore")
+            self.log_writer.writeheader()
+        row = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}
+        row.update(self.raw_telemetry)
+        self.log_writer.writerow(row)
+        self.log_file.flush()
 
     def refresh_combo_sources(self):
         raw_keys = sorted(self.raw_telemetry.keys())
@@ -184,14 +218,14 @@ class CompactDynamicDashboard(QMainWindow):
 
             self.refresh_combo_sources()
 
-            # Adatok előkészítése a telefonra
+            # preparing data for mobile
             v = self.format_value("voltage", self.raw_telemetry.get("SYS_STATUS.voltage_battery"))
             a = self.format_value("current", self.raw_telemetry.get("SYS_STATUS.current_battery"))
             l = self.format_value("distance", self.raw_telemetry.get("DISTANCE_SENSOR.current_distance"))
             alt = self.raw_telemetry.get("VFR_HUD.alt", "--")
             gps = self.raw_telemetry.get("GPS_RAW_INT.satellites_visible", "--")
 
-            # UI frissítése laptopon
+            # updating ui on laptop
             self.card_voltage.value_label.setText(v)
             self.card_current.value_label.setText(a)
 
