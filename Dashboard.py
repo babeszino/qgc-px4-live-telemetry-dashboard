@@ -13,7 +13,7 @@ from pymavlink import mavutil
 class CompactDynamicDashboard(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PX4 live info bridge")
+        self.setWindowTitle("PX4 telemetry dashboard (real-time)")
         self.resize(1200, 550)
         self.setStyleSheet("""
             QMainWindow, QWidget { background-color: #0a0a0a; color: #ecf0f1; font-family: Consolas, Arial; }
@@ -38,6 +38,16 @@ class CompactDynamicDashboard(QMainWindow):
             "VFR_HUD.alt": "Relative altitude",
             "GPS_RAW_INT.satellites_visible": "GPS Sat. visible"
         }
+        # Threshold-ok - status szinek.
+        #   Format: {"orange": value, "green": value, "invert": bool}
+        #   invert=False (default): when higher is better -> red < orange <= green
+        #   invert=True:            when lower  is better -> green < orange <= red
+        self.thresholds = {
+            "SYS_STATUS.voltage_battery":      {"orange": 13200, "green": 14800},          # mV, higher=better
+            "SYS_STATUS.current_battery":      {"orange": 3000,  "green": 5000, "invert": True},  # cA, lower=better
+            "GPS_RAW_INT.satellites_visible":  {"orange": 5,     "green": 8},              # count, higher=better
+            "DISTANCE_SENSOR.current_distance":{"orange": 50,    "green": 200},            # cm, higher=better
+        }
         self.dynamic_panels = []
         self.setup_ui()
         self.timer = QTimer()
@@ -55,10 +65,10 @@ class CompactDynamicDashboard(QMainWindow):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(16)
 
-        self.input_ip = QLineEdit("127.0.0.1")
+        self.input_ip = QLineEdit("172.18.190.31")
         self.input_ip.setStyleSheet("background-color: #2c3e50; color: white; padding: 8px 10px; font-size: 14px; border: 1px solid #4a6278; border-radius: 4px;")
         self.input_ip.setFixedWidth(160)
-        self.input_port = QLineEdit("14551")
+        self.input_port = QLineEdit("14550")
         self.input_port.setStyleSheet("background-color: #2c3e50; color: white; padding: 8px 10px; font-size: 14px; border: 1px solid #4a6278; border-radius: 4px;")
         self.input_port.setFixedWidth(90)
         self.btn_connect = QPushButton("Connect (UDP)")
@@ -122,7 +132,7 @@ class CompactDynamicDashboard(QMainWindow):
             try:
                 ip = self.input_ip.text().strip()
                 port = self.input_port.text().strip()
-                self.master = mavutil.mavlink_connection(f"udp:{ip}:{port}")
+                self.master = mavutil.mavlink_connection(f"udpout:{ip}:{port}")
                 self.is_connecting = True
                 self.input_ip.setEnabled(False)
                 self.input_port.setEnabled(False)
@@ -154,6 +164,8 @@ class CompactDynamicDashboard(QMainWindow):
                 self.timer.start(50)
                 self.start_logging()
         except Exception as e:
+            if getattr(e, "winerror", None) == 10022:
+                return  # Windows: no data yet on udpout socket, keep polling
             print(f"Heartbeat error: {e}")
 
     def start_logging(self):
@@ -199,6 +211,21 @@ class CompactDynamicDashboard(QMainWindow):
             if current in display_names: combo.setCurrentText(current)
             combo.blockSignals(False)
 
+    def get_status_color(self, raw_key, raw_value):
+        """Return a hex color string based on the value's threshold status."""
+        t = self.thresholds.get(raw_key)
+        if t is None or raw_value is None:
+            return "#3498db"  # default blue — no threshold defined
+        invert = t.get("invert", False)
+        if not invert:
+            if raw_value >= t["green"]:   return "#2ecc71"  # green
+            if raw_value >= t["orange"]:  return "#e67e22"  # orange
+            return "#e74c3c"                                 # red
+        else:
+            if raw_value <= t["green"]:   return "#2ecc71"  # green
+            if raw_value <= t["orange"]:  return "#e67e22"  # orange
+            return "#e74c3c"                                 # red
+
     def format_value(self, raw_key, value):
         if value is None: return "--"
         if "voltage" in raw_key: return f"{value / 1000.0:.2f}V"
@@ -218,20 +245,32 @@ class CompactDynamicDashboard(QMainWindow):
 
             self.refresh_combo_sources()
 
-            # preparing data for mobile
-            v = self.format_value("voltage", self.raw_telemetry.get("SYS_STATUS.voltage_battery"))
-            a = self.format_value("current", self.raw_telemetry.get("SYS_STATUS.current_battery"))
-            l = self.format_value("distance", self.raw_telemetry.get("DISTANCE_SENSOR.current_distance"))
-            alt = self.raw_telemetry.get("VFR_HUD.alt", "--")
-            gps = self.raw_telemetry.get("GPS_RAW_INT.satellites_visible", "--")
+            raw_v = self.raw_telemetry.get("SYS_STATUS.voltage_battery")
+            raw_a = self.raw_telemetry.get("SYS_STATUS.current_battery")
+            v = self.format_value("voltage", raw_v)
+            a = self.format_value("current", raw_a)
 
-            # updating ui on laptop
             self.card_voltage.value_label.setText(v)
+            self.card_voltage.value_label.setStyleSheet(
+                f"color: {self.get_status_color('SYS_STATUS.voltage_battery', raw_v)}; padding: 12px;")
+
             self.card_current.value_label.setText(a)
+            self.card_current.value_label.setStyleSheet(
+                f"color: {self.get_status_color('SYS_STATUS.current_battery', raw_a)}; padding: 12px;")
+
+            arm_text = self.card_arm.value_label.text()
+            if arm_text == "ARMED":
+                self.card_arm.value_label.setStyleSheet("color: #e74c3c; padding: 12px;")
+            elif arm_text == "DISARMED":
+                self.card_arm.value_label.setStyleSheet("color: #2ecc71; padding: 12px;")
 
             for panel in self.dynamic_panels:
                 rk = self.display_to_raw.get(panel["combo"].currentText())
-                if rk: panel["label"].setText(self.format_value(rk, self.raw_telemetry.get(rk)))
+                if rk:
+                    raw_val = self.raw_telemetry.get(rk)
+                    panel["label"].setText(self.format_value(rk, raw_val))
+                    color = self.get_status_color(rk, raw_val)
+                    panel["label"].setStyleSheet(f"color: {color}; margin: 20px;")
 
         except Exception as e:
             print(f"Error: {e}")
