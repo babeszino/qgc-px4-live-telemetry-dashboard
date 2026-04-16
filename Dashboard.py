@@ -1,4 +1,7 @@
 import sys
+import csv
+import os
+from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit
@@ -22,6 +25,20 @@ THRESHOLDS = {
     "GPS_RAW_INT.satellites_visible":   {"orange": 5,     "green": 8},
     "DISTANCE_SENSOR.current_distance": {"orange": 50,    "green": 200},
 }
+
+LOG_FIELDS = [
+    ("timestamp",         None),
+    ("voltage_mV",        "SYS_STATUS.voltage_battery"),
+    ("current_cA",        "SYS_STATUS.current_battery"),
+    ("altitude_m",        "VFR_HUD.alt"),
+    ("groundspeed_ms",    "VFR_HUD.groundspeed"),
+    ("gps_satellites",    "GPS_RAW_INT.satellites_visible"),
+    ("lidar_cm",          "DISTANCE_SENSOR.current_distance"),
+    ("roll_rad",          "ATTITUDE.roll"),
+    ("pitch_rad",         "ATTITUDE.pitch"),
+    ("yaw_rad",           "ATTITUDE.yaw"),
+    ("flight_mode",       "HEARTBEAT.custom_mode"),
+]
 
 DEFAULT_DYNAMIC_KEYS = [
     "VFR_HUD.alt",
@@ -144,11 +161,18 @@ class Dashboard(QMainWindow):
         self.last_combo_keys = []
         self.defaults_applied = False
 
+        self.is_armed = False
+        self.log_file = None
+        self.log_writer = None
+
         self.data_timer = QTimer()
         self.data_timer.timeout.connect(self.update_data)
 
         self.heartbeat_timer = QTimer()
         self.heartbeat_timer.timeout.connect(self.try_heartbeat)
+
+        self.log_timer = QTimer()
+        self.log_timer.timeout.connect(self.write_log_row)
 
         self.setup_ui()
 
@@ -217,11 +241,36 @@ class Dashboard(QMainWindow):
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
 
+    def start_arm_log(self):
+        os.makedirs("logs", exist_ok=True)
+        filename = datetime.now().strftime("logs/armed_%Y-%m-%d_%H-%M-%S.csv")
+        self.log_file = open(filename, "w", newline="")
+        self.log_writer = csv.DictWriter(self.log_file, fieldnames=[f for f, _ in LOG_FIELDS])
+        self.log_writer.writeheader()
+        self.log_timer.start(1000)
+
+    def stop_arm_log(self):
+        self.log_timer.stop()
+        if self.log_file:
+            self.log_file.close()
+            self.log_file = None
+            self.log_writer = None
+
+    def write_log_row(self):
+        if not self.log_writer:
+            return
+        row = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}
+        for col, raw_key in LOG_FIELDS[1:]:
+            row[col] = self.raw_telemetry.get(raw_key, "")
+        self.log_writer.writerow(row)
+        self.log_file.flush()
+
     def disconnect(self):
         self.is_connected = False
         self.is_connecting = False
         self.heartbeat_timer.stop()
         self.data_timer.stop()
+        self.stop_arm_log()
         self.raw_telemetry.clear()
         self.last_combo_keys = []
         self.input_port.setEnabled(True)
@@ -282,6 +331,11 @@ class Dashboard(QMainWindow):
 
             base_mode = self.raw_telemetry.get("HEARTBEAT.base_mode", 0)
             armed = bool(base_mode & 128)
+            if armed and not self.is_armed:
+                self.start_arm_log()
+            elif not armed and self.is_armed:
+                self.stop_arm_log()
+            self.is_armed = armed
             self.card_arm.set_text("ARMED" if armed else "DISARMED",
                                    "#e74c3c" if armed else "#2ecc71")
 
