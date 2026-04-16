@@ -73,6 +73,12 @@ def status_color(raw_key, raw_value):
         return "#e74c3c"
 
 
+def indicator_color(raw_key, raw_value):
+    if raw_key not in THRESHOLDS or raw_value is None:
+        return "#7f8c8d"
+    return status_color(raw_key, raw_value)
+
+
 def format_value(raw_key, value):
     if value is None:
         return "--"
@@ -95,12 +101,22 @@ class FixedCard(QGroupBox):
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setStyleSheet(f"color: {color}; padding: 10px;")
         layout.addWidget(self.label)
+        dot_row = QHBoxLayout()
+        dot_row.addStretch()
+        self.indicator = QLabel()
+        self.indicator.setFixedSize(12, 12)
+        self.indicator.setStyleSheet("background-color: #7f8c8d; border-radius: 6px;")
+        dot_row.addWidget(self.indicator)
+        layout.addLayout(dot_row)
         self.setLayout(layout)
 
     def set_text(self, text, color=None):
         self.label.setText(text)
         if color:
             self.label.setStyleSheet(f"color: {color}; padding: 10px;")
+
+    def set_indicator(self, color):
+        self.indicator.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
 
 
 class DynamicCard(QGroupBox):
@@ -115,6 +131,13 @@ class DynamicCard(QGroupBox):
         self.label.setStyleSheet("color: #3498db; margin: 16px;")
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
+        dot_row = QHBoxLayout()
+        dot_row.addStretch()
+        self.indicator = QLabel()
+        self.indicator.setFixedSize(12, 12)
+        self.indicator.setStyleSheet("background-color: #7f8c8d; border-radius: 6px;")
+        dot_row.addWidget(self.indicator)
+        layout.addLayout(dot_row)
         self.setLayout(layout)
         self.display_to_raw = {}
 
@@ -144,6 +167,9 @@ class DynamicCard(QGroupBox):
     def set_value(self, text, color):
         self.label.setText(text)
         self.label.setStyleSheet(f"color: {color}; margin: 16px;")
+
+    def set_indicator(self, color):
+        self.indicator.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
 
 
 class Dashboard(QMainWindow):
@@ -324,10 +350,12 @@ class Dashboard(QMainWindow):
             raw_v = self.raw_telemetry.get("SYS_STATUS.voltage_battery")
             self.card_voltage.set_text(format_value("voltage", raw_v),
                                        status_color("SYS_STATUS.voltage_battery", raw_v))
+            self.card_voltage.set_indicator(indicator_color("SYS_STATUS.voltage_battery", raw_v))
 
             raw_a = self.raw_telemetry.get("SYS_STATUS.current_battery")
             self.card_current.set_text(format_value("current", raw_a),
                                        status_color("SYS_STATUS.current_battery", raw_a))
+            self.card_current.set_indicator(indicator_color("SYS_STATUS.current_battery", raw_a))
 
             base_mode = self.raw_telemetry.get("HEARTBEAT.base_mode", 0)
             armed = bool(base_mode & 128)
@@ -336,17 +364,20 @@ class Dashboard(QMainWindow):
             elif not armed and self.is_armed:
                 self.stop_arm_log()
             self.is_armed = armed
-            self.card_arm.set_text("ARMED" if armed else "DISARMED",
-                                   "#e74c3c" if armed else "#2ecc71")
+            arm_color = "#e74c3c" if armed else "#2ecc71"
+            self.card_arm.set_text("ARMED" if armed else "DISARMED", arm_color)
+            self.card_arm.set_indicator(arm_color)
 
             mode = self.raw_telemetry.get("HEARTBEAT.custom_mode")
             self.card_mode.set_text(str(mode) if mode is not None else "--", "#3498db")
+            self.card_mode.set_indicator("#7f8c8d")
 
             for card in self.dynamic_cards:
                 rk = card.current_raw_key()
                 if rk:
                     raw_val = self.raw_telemetry.get(rk)
                     card.set_value(format_value(rk, raw_val), status_color(rk, raw_val))
+                    card.set_indicator(indicator_color(rk, raw_val))
 
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
