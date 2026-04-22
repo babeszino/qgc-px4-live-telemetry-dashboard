@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit
+    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar
 )
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QFont
@@ -40,7 +40,7 @@ LOG_FIELDS = [
     ("flight_mode",       "HEARTBEAT.custom_mode"),
 ]
 
-DEFAULT_DYNAMIC_KEYS = [
+DEFAULT_DYNAMIC_KEYS = [ 
     "VFR_HUD.alt",
     "DISTANCE_SENSOR.current_distance",
     "GPS_RAW_INT.satellites_visible",
@@ -172,6 +172,83 @@ class DynamicCard(QGroupBox):
         self.indicator.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
 
 
+class MissionCard(QGroupBox):
+    def __init__(self):
+        super().__init__("Mission Status")
+        layout = QVBoxLayout()
+        layout.setSpacing(8)
+
+        self.lbl_waypoint = QLabel("Waypoint: --")
+        self.lbl_waypoint.setFont(QFont("Arial", 16, QFont.Bold))
+        self.lbl_waypoint.setStyleSheet("color: #3498db;")
+        self.lbl_waypoint.setAlignment(Qt.AlignCenter)
+
+        self.lbl_distance = QLabel("Distance to WP: --")
+        self.lbl_distance.setFont(QFont("Arial", 14))
+        self.lbl_distance.setStyleSheet("color: #ecf0f1;")
+        self.lbl_distance.setAlignment(Qt.AlignCenter)
+
+        self.lbl_reached = QLabel("")
+        self.lbl_reached.setFont(QFont("Arial", 12))
+        self.lbl_reached.setStyleSheet("color: #2ecc71;")
+        self.lbl_reached.setAlignment(Qt.AlignCenter)
+
+        self.progress = QProgressBar()
+        self.progress.setTextVisible(True)
+        self.progress.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #2c3e50;
+                border-radius: 4px;
+                background-color: #1a1a1a;
+                color: white;
+                text-align: center;
+                height: 20px;
+            }
+            QProgressBar::chunk {
+                background-color: #2980b9;
+                border-radius: 3px;
+            }
+        """)
+        self.progress.setValue(0)
+        self.progress.setFormat("No mission")
+
+        layout.addWidget(self.lbl_waypoint)
+        layout.addWidget(self.lbl_distance)
+        layout.addWidget(self.lbl_reached)
+        layout.addWidget(self.progress)
+        self.setLayout(layout)
+        self.last_reached = -1
+        self.total_wps = 0
+
+    def update(self, current_seq, wp_dist, last_reached, total_wps):
+        self.total_wps = total_wps
+
+        if current_seq is not None:
+            self.lbl_waypoint.setText(f"Waypoint: {current_seq}")
+        else:
+            self.lbl_waypoint.setText("Waypoint: --")
+
+        if wp_dist is not None:
+            self.lbl_distance.setText(f"Distance to WP: {wp_dist:.1f} m")
+        else:
+            self.lbl_distance.setText("Distance to WP: --")
+
+        if last_reached is not None and last_reached != self.last_reached:
+            self.last_reached = last_reached
+            self.lbl_reached.setText(f"✔ Reached WP {last_reached}")
+        elif last_reached is None:
+            self.lbl_reached.setText("")
+
+        if total_wps > 0 and current_seq is not None:
+            pct = int((current_seq / total_wps) * 100)
+            self.progress.setMaximum(total_wps)
+            self.progress.setValue(current_seq)
+            self.progress.setFormat(f"WP {current_seq} / {total_wps}  ({pct}%)")
+        else:
+            self.progress.setValue(0)
+            self.progress.setFormat("No mission loaded")
+
+
 class Dashboard(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -249,6 +326,9 @@ class Dashboard(QMainWindow):
         for card in self.dynamic_cards:
             dynamic_row.addWidget(card)
         layout.addLayout(dynamic_row)
+
+        self.mission_card = MissionCard()
+        layout.addWidget(self.mission_card)
 
     def toggle_connection(self):
         if self.is_connected or self.is_connecting:
@@ -379,6 +459,12 @@ class Dashboard(QMainWindow):
                     card.set_value(format_value(rk, raw_val), status_color(rk, raw_val))
                     card.set_indicator(indicator_color(rk, raw_val))
 
+            current_seq  = self.raw_telemetry.get("MISSION_CURRENT.seq")
+            wp_dist      = self.raw_telemetry.get("NAV_CONTROLLER_OUTPUT.wp_dist")
+            last_reached = self.raw_telemetry.get("MISSION_ITEM_REACHED.seq")
+            total_wps    = self.raw_telemetry.get("MISSION_COUNT.count", 0)
+            self.mission_card.update(current_seq, wp_dist, last_reached, total_wps)
+
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
 
@@ -387,4 +473,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = Dashboard()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec_()) 
