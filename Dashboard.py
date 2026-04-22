@@ -277,6 +277,11 @@ class Dashboard(QMainWindow):
         self.log_timer = QTimer()
         self.log_timer.timeout.connect(self.write_log_row)
 
+        self.flight_seconds = 0
+        self.flight_timer = QTimer()
+        self.flight_timer.timeout.connect(self._tick_flight_timer)
+        self.was_armed = False
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -312,11 +317,12 @@ class Dashboard(QMainWindow):
 
         # --- fixed cards row ---
         fixed_row = QHBoxLayout()
-        self.card_voltage = FixedCard("Voltage",     "--",      "#f1c40f")
-        self.card_current = FixedCard("Current",     "--",      "#f39c12")
-        self.card_arm     = FixedCard("Arm Status",  "UNKNOWN", "#95a5a6")
-        self.card_mode    = FixedCard("Flight Mode", "--",      "#3498db")
-        for c in [self.card_voltage, self.card_current, self.card_arm, self.card_mode]:
+        self.card_voltage = FixedCard("Voltage",      "--",       "#f1c40f")
+        self.card_current = FixedCard("Current",      "--",       "#f39c12")
+        self.card_arm     = FixedCard("Arm Status",   "UNKNOWN",  "#95a5a6")
+        self.card_mode    = FixedCard("Flight Mode",  "--",       "#3498db")
+        self.card_timer   = FixedCard("Flight Timer", "00:00:00", "#9b59b6")
+        for c in [self.card_voltage, self.card_current, self.card_arm, self.card_mode, self.card_timer]:
             fixed_row.addWidget(c)
         layout.addLayout(fixed_row)
 
@@ -329,6 +335,13 @@ class Dashboard(QMainWindow):
 
         self.mission_card = MissionCard()
         layout.addWidget(self.mission_card)
+
+    def _tick_flight_timer(self):
+        self.flight_seconds += 1
+        h = self.flight_seconds // 3600
+        m = (self.flight_seconds % 3600) // 60
+        s = self.flight_seconds % 60
+        self.card_timer.set_text(f"{h:02d}:{m:02d}:{s:02d}", "#9b59b6")
 
     def toggle_connection(self):
         if self.is_connected or self.is_connecting:
@@ -444,6 +457,13 @@ class Dashboard(QMainWindow):
             elif not armed and self.is_armed:
                 self.stop_arm_log()
             self.is_armed = armed
+
+            if armed and not self.was_armed:
+                self.flight_seconds = 0
+                self.flight_timer.start(1000)
+            elif not armed and self.was_armed:
+                self.flight_timer.stop()
+            self.was_armed = armed
             arm_color = "#e74c3c" if armed else "#2ecc71"
             self.card_arm.set_text("ARMED" if armed else "DISARMED", arm_color)
             self.card_arm.set_indicator(arm_color)
