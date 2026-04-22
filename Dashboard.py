@@ -1,6 +1,7 @@
 import sys
 import csv
 import os
+import math
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -86,10 +87,18 @@ def format_value(raw_key, value):
     if "current"  in raw_key: return f"{value / 100.0:.1f} A"
     if "distance" in raw_key: return f"{value / 100.0:.2f} m"
     if "yaw" in raw_key or "pitch" in raw_key or "roll" in raw_key:
-        import math
         return f"{math.degrees(value):.1f}°"
     if isinstance(value, float): return f"{value:.2f}"
     return str(value)
+
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    R = 6371000  # Earth radius in meters
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
 
 
 class FixedCard(QGroupBox):
@@ -282,6 +291,14 @@ class Dashboard(QMainWindow):
         self.flight_timer.timeout.connect(self._tick_flight_timer)
         self.was_armed = False
 
+        self.home_lat = None
+        self.home_lon = None
+
+        self.msg_count = 0
+        self.msg_per_sec = 0
+        self.health_timer = QTimer()
+        self.health_timer.timeout.connect(self._tick_health)
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -321,8 +338,10 @@ class Dashboard(QMainWindow):
         self.card_current = FixedCard("Current",      "--",       "#f39c12")
         self.card_arm     = FixedCard("Arm Status",   "UNKNOWN",  "#95a5a6")
         self.card_mode    = FixedCard("Flight Mode",  "--",       "#3498db")
-        self.card_timer   = FixedCard("Flight Timer", "00:00:00", "#9b59b6")
-        for c in [self.card_voltage, self.card_current, self.card_arm, self.card_mode, self.card_timer]:
+        self.card_timer     = FixedCard("Flight Timer",   "00:00:00", "#9b59b6")
+        self.card_home_dist = FixedCard("Home Distance",  "--",       "#1abc9c")
+        self.card_link      = FixedCard("Link Health",    "--",       "#95a5a6")
+        for c in [self.card_voltage, self.card_current, self.card_arm, self.card_mode, self.card_timer, self.card_home_dist, self.card_link]:
             fixed_row.addWidget(c)
         layout.addLayout(fixed_row)
 
@@ -335,6 +354,17 @@ class Dashboard(QMainWindow):
 
         self.mission_card = MissionCard()
         layout.addWidget(self.mission_card)
+
+    def _tick_health(self):
+        self.msg_per_sec = self.msg_count
+        self.msg_count = 0
+        if self.msg_per_sec >= 50:
+            color = "#2ecc71"
+        elif self.msg_per_sec >= 20:
+            color = "#e67e22"
+        else:
+            color = "#e74c3c"
+        self.card_link.set_text(f"{self.msg_per_sec} msg/s", color)
 
     def _tick_flight_timer(self):
         self.flight_seconds += 1
@@ -389,9 +419,13 @@ class Dashboard(QMainWindow):
         self.is_connecting = False
         self.heartbeat_timer.stop()
         self.data_timer.stop()
+        self.health_timer.stop()
+        self.card_link.set_text("--", "#95a5a6")
         self.stop_arm_log()
         self.raw_telemetry.clear()
         self.last_combo_keys = []
+        self.home_lat = None
+        self.home_lon = None
         self.input_port.setEnabled(True)
         self.btn_connect.setText("Connect")
         self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
@@ -408,6 +442,7 @@ class Dashboard(QMainWindow):
                 self.btn_connect.setStyleSheet("background-color: #c0392b; color: white;")
                 self.lbl_status.setText("Connected — receiving telemetry")
                 self.data_timer.start(50)
+                self.health_timer.start(1000)
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
             self.disconnect()
@@ -434,6 +469,7 @@ class Dashboard(QMainWindow):
                 msg = self.master.recv_match(blocking=False)
                 if not msg:
                     break
+                self.msg_count += 1
                 for key, val in msg.to_dict().items():
                     if key != "mavpackettype":
                         self.raw_telemetry[f"{msg.get_type()}.{key}"] = val
@@ -478,6 +514,27 @@ class Dashboard(QMainWindow):
                     raw_val = self.raw_telemetry.get(rk)
                     card.set_value(format_value(rk, raw_val), status_color(rk, raw_val))
                     card.set_indicator(indicator_color(rk, raw_val))
+
+            home_lat_raw = self.raw_telemetry.get("HOME_POSITION.latitude")
+            home_lon_raw = self.raw_telemetry.get("HOME_POSITION.longitude")
+            if home_lat_raw is not None and self.home_lat is None:
+                self.home_lat = home_lat_raw / 1e7
+                self.home_lon = home_lon_raw / 1e7
+
+            cur_lat_raw = self.raw_telemetry.get("GPS_RAW_INT.lat")
+            cur_lon_raw = self.raw_telemetry.get("GPS_RAW_INT.lon")
+            if self.home_lat is not None and cur_lat_raw is not None:
+                cur_lat = cur_lat_raw / 1e7
+                cur_lon = cur_lon_raw / 1e7
+                dist = haversine_distance(self.home_lat, self.home_lon, cur_lat, cur_lon)
+                if dist >= 1000:
+                    dist_str = f"{dist / 1000:.2f} km"
+                else:
+                    dist_str = f"{dist:.1f} m"
+                color = "#2ecc71" if dist < 50 else "#e67e22" if dist < 200 else "#e74c3c"
+                self.card_home_dist.set_text(dist_str, color)
+            else:
+                self.card_home_dist.set_text("No GPS", "#95a5a6")
 
             current_seq  = self.raw_telemetry.get("MISSION_CURRENT.seq")
             wp_dist      = self.raw_telemetry.get("NAV_CONTROLLER_OUTPUT.wp_dist")
