@@ -5,7 +5,7 @@ import math
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar
+    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar, QGridLayout
 )
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QFont
@@ -83,6 +83,7 @@ def indicator_color(raw_key, raw_value):
 def format_value(raw_key, value):
     if value is None:
         return "--"
+    
     if "voltage"  in raw_key: return f"{value / 1000.0:.2f} V"
     if "current"  in raw_key: return f"{value / 100.0:.1f} A"
     if "distance" in raw_key: return f"{value / 100.0:.2f} m"
@@ -93,12 +94,68 @@ def format_value(raw_key, value):
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
-    R = 6371000  # Earth radius in meters
+    R = 6371000  # earth radius in meters
     lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
     dlat = lat2 - lat1
     dlon = lon2 - lon1
     a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
     return R * 2 * math.asin(math.sqrt(a))
+
+
+SENSOR_BITS = {
+    0x00000001: "3D Gyro",
+    0x00000002: "3D Accel",
+    0x00000004: "3D Mag",
+    0x00000008: "Barometer",
+    0x00000020: "GPS",
+    0x00000040: "Optical Flow",
+    0x00010000: "RC Receiver",
+    0x00020000: "Gyro 2",
+    0x00040000: "Accel 2",
+    0x00080000: "Mag 2",
+    0x00200000: "AHRS",
+    0x02000000: "Battery",
+    0x04000000: "Proximity",
+    0x10000000: "Pre-arm",
+}
+
+
+class SensorHealthPanel(QGroupBox):
+    def __init__(self):
+        super().__init__("Sensor Health")
+        self.grid = QGridLayout()
+        self.grid.setSpacing(4)
+        self.setLayout(self.grid)
+        self.indicators = {}
+
+    def update(self, present, enabled, health):
+        for i in reversed(range(self.grid.count())):
+            self.grid.itemAt(i).widget().deleteLater()
+        self.indicators.clear()
+
+        if present is None:
+            lbl = QLabel("No data")
+            lbl.setStyleSheet("color: #7f8c8d;")
+            self.grid.addWidget(lbl, 0, 0)
+            return
+
+        active_sensors = {
+            bit: name for bit, name in SENSOR_BITS.items()
+            if (present & bit) and (enabled & bit)
+        }
+
+        col, row = 0, 0
+        for bit, name in active_sensors.items():
+            healthy = bool(health & bit)
+            color = "#2ecc71" if healthy else "#e74c3c"
+            lbl = QLabel(f"● {name}")
+            lbl.setStyleSheet(f"color: {color}; font-size: 12px;")
+            lbl.setFixedHeight(20)
+            self.grid.addWidget(lbl, row, col)
+            col += 1
+            if col > 2:
+                col = 0
+                row += 1
 
 
 class FixedCard(QGroupBox):
@@ -355,9 +412,13 @@ class Dashboard(QMainWindow):
         self.mission_card = MissionCard()
         layout.addWidget(self.mission_card)
 
+        self.sensor_panel = SensorHealthPanel()
+        layout.addWidget(self.sensor_panel)
+
     def _tick_health(self):
         self.msg_per_sec = self.msg_count
         self.msg_count = 0
+
         if self.msg_per_sec >= 50:
             color = "#2ecc71"
         elif self.msg_per_sec >= 20:
@@ -377,6 +438,7 @@ class Dashboard(QMainWindow):
         if self.is_connected or self.is_connecting:
             self.disconnect()
             return
+        
         try:
             port = self.input_port.text().strip()
             self.master = mavutil.mavlink_connection(f"udpin:0.0.0.0:{port}")
@@ -387,6 +449,7 @@ class Dashboard(QMainWindow):
             self.btn_connect.setStyleSheet("background-color: #e67e22; color: white;")
             self.lbl_status.setText(f"Listening on UDP port {port}...")
             self.heartbeat_timer.start(200)
+
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
 
@@ -400,6 +463,7 @@ class Dashboard(QMainWindow):
 
     def stop_arm_log(self):
         self.log_timer.stop()
+
         if self.log_file:
             self.log_file.close()
             self.log_file = None
@@ -408,9 +472,11 @@ class Dashboard(QMainWindow):
     def write_log_row(self):
         if not self.log_writer:
             return
+        
         row = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}
         for col, raw_key in LOG_FIELDS[1:]:
             row[col] = self.raw_telemetry.get(raw_key, "")
+
         self.log_writer.writerow(row)
         self.log_file.flush()
 
@@ -434,6 +500,7 @@ class Dashboard(QMainWindow):
     def try_heartbeat(self):
         try:
             msg = self.master.recv_match(type="HEARTBEAT", blocking=False)
+
             if msg:
                 self.is_connecting = False
                 self.is_connected = True
@@ -443,6 +510,7 @@ class Dashboard(QMainWindow):
                 self.lbl_status.setText("Connected — receiving telemetry")
                 self.data_timer.start(50)
                 self.health_timer.start(1000)
+
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
             self.disconnect()
@@ -450,26 +518,34 @@ class Dashboard(QMainWindow):
     def refresh_combos(self):
         raw_keys = sorted(self.raw_telemetry.keys())
         display_names = [f"{FRIENDLY_NAMES.get(k, k)} [{k}]" for k in raw_keys]
+
         if display_names == self.last_combo_keys:
             return
+        
         self.last_combo_keys = display_names
         self.display_to_raw = {d: r for d, r in zip(display_names, raw_keys)}
+
         for card in self.dynamic_cards:
             card.update_combo(self.display_to_raw)
+
         if not self.defaults_applied and self.display_to_raw:
             for card, key in zip(self.dynamic_cards, DEFAULT_DYNAMIC_KEYS):
                 card.set_default(key, self.display_to_raw)
+
             self.defaults_applied = True
 
     def update_data(self):
         if not self.is_connected:
             return
+        
         try:
             for _ in range(50):
                 msg = self.master.recv_match(blocking=False)
                 if not msg:
                     break
+
                 self.msg_count += 1
+
                 for key, val in msg.to_dict().items():
                     if key != "mavpackettype":
                         self.raw_telemetry[f"{msg.get_type()}.{key}"] = val
@@ -488,17 +564,22 @@ class Dashboard(QMainWindow):
 
             base_mode = self.raw_telemetry.get("HEARTBEAT.base_mode", 0)
             armed = bool(base_mode & 128)
+
             if armed and not self.is_armed:
                 self.start_arm_log()
+
             elif not armed and self.is_armed:
                 self.stop_arm_log()
+
             self.is_armed = armed
 
             if armed and not self.was_armed:
                 self.flight_seconds = 0
                 self.flight_timer.start(1000)
+
             elif not armed and self.was_armed:
                 self.flight_timer.stop()
+
             self.was_armed = armed
             arm_color = "#e74c3c" if armed else "#2ecc71"
             self.card_arm.set_text("ARMED" if armed else "DISARMED", arm_color)
@@ -527,12 +608,16 @@ class Dashboard(QMainWindow):
                 cur_lat = cur_lat_raw / 1e7
                 cur_lon = cur_lon_raw / 1e7
                 dist = haversine_distance(self.home_lat, self.home_lon, cur_lat, cur_lon)
+
                 if dist >= 1000:
                     dist_str = f"{dist / 1000:.2f} km"
+
                 else:
                     dist_str = f"{dist:.1f} m"
+
                 color = "#2ecc71" if dist < 50 else "#e67e22" if dist < 200 else "#e74c3c"
                 self.card_home_dist.set_text(dist_str, color)
+
             else:
                 self.card_home_dist.set_text("No GPS", "#95a5a6")
 
@@ -542,6 +627,11 @@ class Dashboard(QMainWindow):
             total_wps    = self.raw_telemetry.get("MISSION_COUNT.count", 0)
             self.mission_card.update(current_seq, wp_dist, last_reached, total_wps)
 
+            present = self.raw_telemetry.get("SYS_STATUS.onboard_control_sensors_present")
+            enabled = self.raw_telemetry.get("SYS_STATUS.onboard_control_sensors_enabled")
+            health  = self.raw_telemetry.get("SYS_STATUS.onboard_control_sensors_health")
+            self.sensor_panel.update(present, enabled, health)
+
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
 
@@ -550,4 +640,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = Dashboard()
     window.show()
-    sys.exit(app.exec_()) 
+    sys.exit(app.exec_())
