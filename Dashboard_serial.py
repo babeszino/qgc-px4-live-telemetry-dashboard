@@ -368,23 +368,48 @@ class Dashboard(QMainWindow):
         top = QHBoxLayout()
         top.setSpacing(10)
 
-        lbl_port = QLabel("Listen port:")
-        lbl_port.setStyleSheet("color: #95a5a6; font-size: 13px;")
+        self.combo_conn_type = QComboBox()
+        self.combo_conn_type.addItems(["UDP (SITL)", "Serial (RFD868x)"])
+        self.combo_conn_type.setFixedWidth(160)
+        self.combo_conn_type.currentIndexChanged.connect(self._on_conn_type_changed)
+        top.addWidget(self.combo_conn_type)
+
+        # UDP widgets
+        self.lbl_port = QLabel("Listen port:")
+        self.lbl_port.setStyleSheet("color: #95a5a6; font-size: 13px;")
         self.input_port = QLineEdit("14551")
         self.input_port.setFixedWidth(90)
+        top.addWidget(self.lbl_port)
+        top.addWidget(self.input_port)
+
+        # Serial widgets (hidden by default)
+        self.lbl_com = QLabel("COM port:")
+        self.lbl_com.setStyleSheet("color: #95a5a6; font-size: 13px;")
+        self.input_com = QLineEdit("COM3")
+        self.input_com.setFixedWidth(90)
+        self.lbl_baud = QLabel("Baud:")
+        self.lbl_baud.setStyleSheet("color: #95a5a6; font-size: 13px;")
+        self.combo_baud = QComboBox()
+        self.combo_baud.addItems(["57600", "115200", "38400", "19200"])
+        self.combo_baud.setFixedWidth(100)
+        top.addWidget(self.lbl_com)
+        top.addWidget(self.input_com)
+        top.addWidget(self.lbl_baud)
+        top.addWidget(self.combo_baud)
+        self.lbl_com.hide()
+        self.input_com.hide()
+        self.lbl_baud.hide()
+        self.combo_baud.hide()
 
         self.btn_connect = QPushButton("Connect")
         self.btn_connect.setFixedWidth(130)
         self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
         self.btn_connect.clicked.connect(self.toggle_connection)
+        top.addWidget(self.btn_connect)
+        top.addSpacing(16)
 
         self.lbl_status = QLabel("Waiting...")
         self.lbl_status.setStyleSheet("color: #7f8c8d; font-size: 13px;")
-
-        top.addWidget(lbl_port)
-        top.addWidget(self.input_port)
-        top.addWidget(self.btn_connect)
-        top.addSpacing(16)
         top.addWidget(self.lbl_status)
         top.addStretch()
         layout.addLayout(top)
@@ -434,22 +459,45 @@ class Dashboard(QMainWindow):
         s = self.flight_seconds % 60
         self.card_timer.set_text(f"{h:02d}:{m:02d}:{s:02d}", "#9b59b6")
 
+    def _on_conn_type_changed(self, index):
+        is_serial = index == 1
+        self.lbl_port.setVisible(not is_serial)
+        self.input_port.setVisible(not is_serial)
+        self.lbl_com.setVisible(is_serial)
+        self.input_com.setVisible(is_serial)
+        self.lbl_baud.setVisible(is_serial)
+        self.combo_baud.setVisible(is_serial)
+
+    def _set_inputs_enabled(self, enabled):
+        self.combo_conn_type.setEnabled(enabled)
+        self.input_port.setEnabled(enabled)
+        self.input_com.setEnabled(enabled)
+        self.combo_baud.setEnabled(enabled)
+
     def toggle_connection(self):
         if self.is_connected or self.is_connecting:
             self.disconnect()
             return
-        
         try:
-            port = self.input_port.text().strip()
-            self.master = mavutil.mavlink_connection(f"udpin:0.0.0.0:{port}")
+            is_serial = self.combo_conn_type.currentIndex() == 1
+            if is_serial:
+                com  = self.input_com.text().strip()
+                baud = self.combo_baud.currentText()
+                conn_str = f"{com}:{baud}"
+                status_msg = f"Connecting to {com} @ {baud} baud..."
+            else:
+                port = self.input_port.text().strip()
+                conn_str = f"udpin:0.0.0.0:{port}"
+                status_msg = f"Listening on UDP port {port}..."
+
+            self.master = mavutil.mavlink_connection(conn_str, baud=int(self.combo_baud.currentText()) if is_serial else 0)
             self.is_connecting = True
             self.defaults_applied = False
-            self.input_port.setEnabled(False)
+            self._set_inputs_enabled(False)
             self.btn_connect.setText("Connecting...")
             self.btn_connect.setStyleSheet("background-color: #e67e22; color: white;")
-            self.lbl_status.setText(f"Listening on UDP port {port}...")
+            self.lbl_status.setText(status_msg)
             self.heartbeat_timer.start(200)
-
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
 
@@ -492,7 +540,7 @@ class Dashboard(QMainWindow):
         self.last_combo_keys = []
         self.home_lat = None
         self.home_lon = None
-        self.input_port.setEnabled(True)
+        self._set_inputs_enabled(True)
         self.btn_connect.setText("Connect")
         self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
         self.lbl_status.setText("Disconnected.")
@@ -513,7 +561,7 @@ class Dashboard(QMainWindow):
 
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
-            self.disconnect()
+            self.disconnect() 
 
     def refresh_combos(self):
         raw_keys = sorted(self.raw_telemetry.keys())
@@ -640,4 +688,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = Dashboard()
     window.show()
-    sys.exit(app.exec_()) 
+    sys.exit(app.exec_())
