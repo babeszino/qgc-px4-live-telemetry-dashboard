@@ -102,6 +102,36 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return R * 2 * math.asin(math.sqrt(a))
 
 
+PX4_MAIN_MODES = {
+    1: "MANUAL",
+    2: "ALTCTL",
+    3: "POSCTL",
+    4: "AUTO",
+    5: "ACRO",
+    6: "OFFBOARD",
+    7: "STABILIZED",
+}
+
+PX4_SUB_MODES_AUTO = {
+    1: "READY",
+    2: "TAKEOFF",
+    3: "LOITER",
+    4: "MISSION",
+    5: "RTL",
+    6: "LAND",
+    8: "FOLLOW TARGET",
+    9: "PRECLAND",
+}
+
+def decode_px4_mode(custom_mode):
+    main = (custom_mode >> 16) & 0xFF
+    sub  = (custom_mode >> 24) & 0xFF
+    main_name = PX4_MAIN_MODES.get(main, f"MODE({main})")
+    if main == 4 and sub in PX4_SUB_MODES_AUTO:
+        return f"AUTO:{PX4_SUB_MODES_AUTO[sub]}"
+    return main_name
+
+
 SENSOR_BITS = {
     0x00000001: "3D Gyro",
     0x00000002: "3D Accel",
@@ -634,7 +664,8 @@ class Dashboard(QMainWindow):
             self.card_arm.set_indicator(arm_color)
 
             mode = self.raw_telemetry.get("HEARTBEAT.custom_mode")
-            self.card_mode.set_text(str(mode) if mode is not None else "--", "#3498db")
+            mode_str = decode_px4_mode(mode) if mode is not None else "--"
+            self.card_mode.set_text(mode_str, "#3498db")
             self.card_mode.set_indicator("#7f8c8d")
 
             for card in self.dynamic_cards:
