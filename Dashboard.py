@@ -2,6 +2,7 @@ import sys
 import csv
 import os
 import math
+import collections
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -12,7 +13,7 @@ from PyQt5.QtGui import QFont
 from pymavlink import mavutil
 
 
-FRIENDLY_NAMES = {
+BETTER_NAMES = {
     "SYS_STATUS.voltage_battery":       "Batt. Voltage",
     "SYS_STATUS.current_battery":       "Batt. Current",
     "DISTANCE_SENSOR.current_distance": "Lidar Distance",
@@ -239,7 +240,7 @@ class DynamicCard(QGroupBox):
 
     def _on_combo_changed(self, text):
         raw_key = self.display_to_raw.get(text)
-        self.setTitle(FRIENDLY_NAMES.get(raw_key, raw_key) if raw_key else "—")
+        self.setTitle(BETTER_NAMES.get(raw_key, raw_key) if raw_key else "—")
 
     def update_combo(self, display_to_raw):
         self.display_to_raw = display_to_raw
@@ -386,6 +387,11 @@ class Dashboard(QMainWindow):
         self.health_timer = QTimer()
         self.health_timer.timeout.connect(self._tick_health)
 
+        self.current_buffer = collections.deque(maxlen=60)
+        self.mah_used = 0.0
+        self.BATTERY_CAPACITY_MAH = 4200
+        self.last_current_time = None
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -427,8 +433,9 @@ class Dashboard(QMainWindow):
         self.card_mode    = FixedCard("Flight Mode",  "--",       "#3498db")
         self.card_timer     = FixedCard("Flight Timer",   "00:00:00", "#9b59b6")
         self.card_home_dist = FixedCard("Home Distance",  "--",       "#1abc9c")
-        self.card_link      = FixedCard("Link Health",    "--",       "#95a5a6")
-        for c in [self.card_voltage, self.card_current, self.card_arm, self.card_mode, self.card_timer, self.card_home_dist, self.card_link]:
+        self.card_link         = FixedCard("Link Health",  "--",       "#95a5a6")
+        self.card_battery_time = FixedCard("Time Left",   "--",       "#9b59b6")
+        for c in [self.card_voltage, self.card_current, self.card_arm, self.card_mode, self.card_timer, self.card_home_dist, self.card_link, self.card_battery_time]:
             fixed_row.addWidget(c)
         layout.addLayout(fixed_row)
 
@@ -444,6 +451,43 @@ class Dashboard(QMainWindow):
 
         self.sensor_panel = SensorHealthPanel()
         layout.addWidget(self.sensor_panel)
+
+    def _update_battery_estimate(self, raw_a):
+        if raw_a is None:
+            return
+
+        now = datetime.now()
+        current_amps = raw_a / 100.0
+
+        if self.last_current_time is not None:
+            dt_hours = (now - self.last_current_time).total_seconds() / 3600.0
+            self.mah_used += current_amps * 1000.0 * dt_hours
+        self.last_current_time = now
+
+        self.current_buffer.append(current_amps)
+
+        mah_remaining = max(0, self.BATTERY_CAPACITY_MAH - self.mah_used)
+
+        if len(self.current_buffer) >= 5 and sum(self.current_buffer) > 0:
+            avg_current = sum(self.current_buffer) / len(self.current_buffer)
+            hours_left = (mah_remaining / 1000.0) / avg_current
+            minutes_left = hours_left * 60.0
+            if minutes_left > 99:
+                time_str = ">99 min"
+                color = "#2ecc71"
+            elif minutes_left > 10:
+                time_str = f"{minutes_left:.1f} min"
+                color = "#2ecc71"
+            elif minutes_left > 5:
+                time_str = f"{minutes_left:.1f} min"
+                color = "#e67e22"
+            else:
+                time_str = f"{minutes_left:.1f} min"
+                color = "#e74c3c"
+            pct = int((mah_remaining / self.BATTERY_CAPACITY_MAH) * 100)
+            self.card_battery_time.set_text(f"{time_str}\n{pct}% left", color)
+        else:
+            self.card_battery_time.set_text("Calculating...", "#95a5a6")
 
     def _tick_health(self):
         self.msg_per_sec = self.msg_count
@@ -522,6 +566,9 @@ class Dashboard(QMainWindow):
         self.last_combo_keys = []
         self.home_lat = None
         self.home_lon = None
+        self.mah_used = 0.0
+        self.current_buffer.clear()
+        self.last_current_time = None
         self.input_port.setEnabled(True)
         self.btn_connect.setText("Connect")
         self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
@@ -547,7 +594,7 @@ class Dashboard(QMainWindow):
 
     def refresh_combos(self):
         raw_keys = sorted(self.raw_telemetry.keys())
-        display_names = [f"{FRIENDLY_NAMES.get(k, k)} [{k}]" for k in raw_keys]
+        display_names = [f"{BETTER_NAMES.get(k, k)} [{k}]" for k in raw_keys]
 
         if display_names == self.last_combo_keys:
             return
@@ -591,6 +638,7 @@ class Dashboard(QMainWindow):
             self.card_current.set_text(format_value("current", raw_a),
                                        status_color("SYS_STATUS.current_battery", raw_a))
             self.card_current.set_indicator(indicator_color("SYS_STATUS.current_battery", raw_a))
+            self._update_battery_estimate(raw_a)
 
             base_mode = self.raw_telemetry.get("HEARTBEAT.base_mode", 0)
             armed = bool(base_mode & 128)
@@ -606,6 +654,9 @@ class Dashboard(QMainWindow):
             if armed and not self.was_armed:
                 self.flight_seconds = 0
                 self.flight_timer.start(1000)
+                self.mah_used = 0.0
+                self.current_buffer.clear()
+                self.last_current_time = None
 
             elif not armed and self.was_armed:
                 self.flight_timer.stop()
