@@ -6,7 +6,7 @@ import collections
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar, QGridLayout
+    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar, QGridLayout, QTextEdit
 )
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QFont
@@ -149,6 +149,54 @@ SENSOR_BITS = {
     0x04000000: "Proximity",
     0x10000000: "Pre-arm",
 }
+
+
+class StatusTextPanel(QGroupBox):
+    def __init__(self):
+        super().__init__("PX4 Messages")
+        layout = QVBoxLayout()
+
+        btn_clear = QPushButton("Clear")
+        btn_clear.setFixedWidth(70)
+        btn_clear.setStyleSheet("background-color: #2c3e50; color: white; padding: 4px; font-size: 11px;")
+        btn_clear.clicked.connect(self.clear)
+
+        top = QHBoxLayout()
+        top.addWidget(QLabel("Recent PX4 messages:"))
+        top.addStretch()
+        top.addWidget(btn_clear)
+        layout.addLayout(top)
+
+        self.log = QTextEdit()
+        self.log.setReadOnly(True)
+        self.log.setFixedHeight(160)
+        self.log.setStyleSheet("""
+            QTextEdit {
+                background-color: #0d0d0d;
+                color: #ecf0f1;
+                font-family: Consolas, monospace;
+                font-size: 12px;
+                border: 1px solid #2c3e50;
+                border-radius: 4px;
+            }
+        """)
+        layout.addWidget(self.log)
+        self.setLayout(layout)
+
+    def add(self, severity, text):
+        if severity <= 2:
+            color = "#e74c3c"
+        elif severity <= 4:
+            color = "#e67e22"
+        else:
+            color = "#ecf0f1"
+
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.log.append(f'<span style="color:#7f8c8d;">[{timestamp}]</span> <span style="color:{color};">{text}</span>')
+        self.log.verticalScrollBar().setValue(self.log.verticalScrollBar().maximum())
+
+    def clear(self):
+        self.log.clear()
 
 
 class SensorHealthPanel(QGroupBox):
@@ -477,6 +525,9 @@ class Dashboard(QMainWindow):
         self.sensor_panel = SensorHealthPanel()
         layout.addWidget(self.sensor_panel)
 
+        self.statustext_panel = StatusTextPanel()
+        layout.addWidget(self.statustext_panel)
+
     def _update_battery_estimate(self, raw_a):
         if raw_a is None:
             return
@@ -668,9 +719,9 @@ class Dashboard(QMainWindow):
                 msg = self.master.recv_match(blocking=False)
                 if not msg:
                     break
-
                 self.msg_count += 1
-
+                if msg.get_type() == "STATUSTEXT":
+                    self.statustext_panel.add(msg.severity, msg.text.strip())
                 for key, val in msg.to_dict().items():
                     if key != "mavpackettype":
                         self.raw_telemetry[f"{msg.get_type()}.{key}"] = val
