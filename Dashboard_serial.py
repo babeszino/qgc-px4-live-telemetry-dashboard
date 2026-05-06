@@ -151,6 +151,112 @@ SENSOR_BITS = {
 }
 
 
+class MaxValuesPanel(QGroupBox):
+    def __init__(self):
+        super().__init__("Session Peaks")
+        layout = QGridLayout()
+        layout.setSpacing(6)
+        self.values = {
+            "Max Altitude":  ("--", "#3498db"),
+            "Max Speed":     ("--", "#9b59b6"),
+            "Max Current":   ("--", "#e67e22"),
+            "Max Distance":  ("--", "#1abc9c"),
+        }
+        self.labels = {}
+        for i, (name, (default, color)) in enumerate(self.values.items()):
+            lbl_name = QLabel(name)
+            lbl_name.setStyleSheet("color: #95a5a6; font-size: 11px;")
+            lbl_val = QLabel(default)
+            lbl_val.setFont(QFont("Arial", 14, QFont.Bold))
+            lbl_val.setStyleSheet(f"color: {color};")
+            lbl_val.setAlignment(Qt.AlignRight)
+            layout.addWidget(lbl_name, i, 0)
+            layout.addWidget(lbl_val,  i, 1)
+            self.labels[name] = lbl_val
+        self.setLayout(layout)
+
+    def update(self, name, value_str):
+        if name in self.labels:
+            self.labels[name].setText(value_str)
+
+    def reset(self):
+        for lbl in self.labels.values():
+            lbl.setText("--")
+
+
+class MotorOutputPanel(QGroupBox):
+    def __init__(self):
+        super().__init__("Motor Outputs")
+        layout = QGridLayout()
+        layout.setSpacing(8)
+        self.bars = []
+        self.labels = []
+        for i in range(4):
+            lbl_name = QLabel(f"M{i+1}")
+            lbl_name.setStyleSheet("color: #95a5a6; font-size: 12px;")
+            lbl_name.setFixedWidth(24)
+
+            bar = QProgressBar()
+            bar.setMinimum(1000)
+            bar.setMaximum(2000)
+            bar.setValue(1000)
+            bar.setTextVisible(False)
+            bar.setFixedHeight(22)
+            bar.setStyleSheet("""
+                QProgressBar {
+                    background-color: #1a1a1a;
+                    border: 1px solid #2c3e50;
+                    border-radius: 3px;
+                }
+                QProgressBar::chunk {
+                    background-color: #2980b9;
+                    border-radius: 2px;
+                }
+            """)
+
+            lbl_val = QLabel("--")
+            lbl_val.setStyleSheet("color: #ecf0f1; font-size: 12px;")
+            lbl_val.setFixedWidth(50)
+
+            layout.addWidget(lbl_name, i, 0)
+            layout.addWidget(bar,      i, 1)
+            layout.addWidget(lbl_val,  i, 2)
+            self.bars.append(bar)
+            self.labels.append(lbl_val)
+
+        self.setLayout(layout)
+
+    def update(self, outputs):
+        for i, (bar, lbl) in enumerate(zip(self.bars, self.labels)):
+            val = outputs[i] if i < len(outputs) else None
+            if val is None or val < 900:
+                bar.setValue(1000)
+                bar.setStyleSheet(bar.styleSheet().replace("#2980b9", "#2c3e50"))
+                lbl.setText("--")
+            else:
+                clamped = max(1000, min(2000, int(val)))
+                pct = (clamped - 1000) / 1000.0
+                if pct < 0.3:
+                    color = "#2ecc71"
+                elif pct < 0.7:
+                    color = "#e67e22"
+                else:
+                    color = "#e74c3c"
+                bar.setStyleSheet(f"""
+                    QProgressBar {{
+                        background-color: #1a1a1a;
+                        border: 1px solid #2c3e50;
+                        border-radius: 3px;
+                    }}
+                    QProgressBar::chunk {{
+                        background-color: {color};
+                        border-radius: 2px;
+                    }}
+                """)
+                bar.setValue(clamped)
+                lbl.setText(f"{clamped}")
+
+
 class StatusTextPanel(QGroupBox):
     def __init__(self):
         super().__init__("PX4 Messages")
@@ -440,6 +546,11 @@ class Dashboard(QMainWindow):
         self.BATTERY_CAPACITY_MAH = 4200
         self.last_current_time = None
 
+        self.max_altitude = None
+        self.max_speed    = None
+        self.max_current  = None
+        self.max_distance = None
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -527,6 +638,12 @@ class Dashboard(QMainWindow):
 
         self.statustext_panel = StatusTextPanel()
         layout.addWidget(self.statustext_panel)
+
+        self.motor_panel = MotorOutputPanel()
+        layout.addWidget(self.motor_panel)
+
+        self.max_panel = MaxValuesPanel()
+        layout.addWidget(self.max_panel)
 
     def _update_battery_estimate(self, raw_a):
         if raw_a is None:
@@ -756,6 +873,11 @@ class Dashboard(QMainWindow):
                 self.mah_used = 0.0
                 self.current_buffer.clear()
                 self.last_current_time = None
+                self.max_altitude = None
+                self.max_speed    = None
+                self.max_current  = None
+                self.max_distance = None
+                self.max_panel.reset()
 
             elif not armed and self.was_armed:
                 self.flight_timer.stop()
@@ -812,6 +934,41 @@ class Dashboard(QMainWindow):
             enabled = self.raw_telemetry.get("SYS_STATUS.onboard_control_sensors_enabled")
             health  = self.raw_telemetry.get("SYS_STATUS.onboard_control_sensors_health")
             self.sensor_panel.update(present, enabled, health)
+
+            outputs = [
+                self.raw_telemetry.get(f"ACTUATOR_OUTPUTS.output[{i}]")
+                for i in range(4)
+            ]
+            self.motor_panel.update(outputs)
+
+            alt = self.raw_telemetry.get("VFR_HUD.alt")
+            if alt is not None:
+                if self.max_altitude is None or alt > self.max_altitude:
+                    self.max_altitude = alt
+                    self.max_panel.update("Max Altitude", f"{alt:.1f} m")
+
+            spd = self.raw_telemetry.get("VFR_HUD.groundspeed")
+            if spd is not None:
+                if self.max_speed is None or spd > self.max_speed:
+                    self.max_speed = spd
+                    self.max_panel.update("Max Speed", f"{spd:.1f} m/s")
+
+            raw_a = self.raw_telemetry.get("SYS_STATUS.current_battery")
+            if raw_a is not None:
+                amps = raw_a / 100.0
+                if self.max_current is None or amps > self.max_current:
+                    self.max_current = amps
+                    self.max_panel.update("Max Current", f"{amps:.1f} A")
+
+            if self.home_lat is not None:
+                cur_lat_raw = self.raw_telemetry.get("GPS_RAW_INT.lat")
+                cur_lon_raw = self.raw_telemetry.get("GPS_RAW_INT.lon")
+                if cur_lat_raw is not None:
+                    dist = haversine_distance(self.home_lat, self.home_lon,
+                                              cur_lat_raw / 1e7, cur_lon_raw / 1e7)
+                    if self.max_distance is None or dist > self.max_distance:
+                        self.max_distance = dist
+                        self.max_panel.update("Max Distance", f"{dist:.1f} m")
 
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
