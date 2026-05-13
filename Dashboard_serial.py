@@ -151,6 +151,91 @@ SENSOR_BITS = {
 }
 
 
+class VibrationMonitor(QGroupBox):
+    def __init__(self):
+        super().__init__("Vibration Monitor")
+        layout = QGridLayout()
+        layout.setSpacing(8)
+        self.bars  = {}
+        self.labels = {}
+        axes = ["X", "Y", "Z"]
+        for i, axis in enumerate(axes):
+            lbl_name = QLabel(f"Vib {axis}")
+            lbl_name.setStyleSheet("color: #95a5a6; font-size: 12px;")
+            lbl_name.setFixedWidth(40)
+
+            bar = QProgressBar()
+            bar.setMinimum(0)
+            bar.setMaximum(60)
+            bar.setValue(0)
+            bar.setTextVisible(False)
+            bar.setFixedHeight(22)
+            bar.setStyleSheet("""
+                QProgressBar {
+                    background-color: #1a1a1a;
+                    border: 1px solid #2c3e50;
+                    border-radius: 3px;
+                }
+                QProgressBar::chunk {
+                    background-color: #2ecc71;
+                    border-radius: 2px;
+                }
+            """)
+
+            lbl_val = QLabel("--")
+            lbl_val.setStyleSheet("color: #ecf0f1; font-size: 12px;")
+            lbl_val.setFixedWidth(60)
+
+            layout.addWidget(lbl_name, i, 0)
+            layout.addWidget(bar,      i, 1)
+            layout.addWidget(lbl_val,  i, 2)
+            self.bars[axis]   = bar
+            self.labels[axis] = lbl_val
+
+        clipping_row = len(axes)
+        self.lbl_clipping = QLabel("Clipping:  --")
+        self.lbl_clipping.setStyleSheet("color: #95a5a6; font-size: 12px;")
+        layout.addWidget(self.lbl_clipping, clipping_row, 0, 1, 3)
+
+        self.setLayout(layout)
+
+    def update(self, vib_x, vib_y, vib_z, clipping):
+        for axis, val in zip(["X", "Y", "Z"], [vib_x, vib_y, vib_z]):
+            bar   = self.bars[axis]
+            label = self.labels[axis]
+            if val is None:
+                label.setText("--")
+                bar.setValue(0)
+                continue
+            if val < 15:
+                color = "#2ecc71"
+            elif val < 30:
+                color = "#e67e22"
+            else:
+                color = "#e74c3c"
+            bar.setStyleSheet(f"""
+                QProgressBar {{
+                    background-color: #1a1a1a;
+                    border: 1px solid #2c3e50;
+                    border-radius: 3px;
+                }}
+                QProgressBar::chunk {{
+                    background-color: {color};
+                    border-radius: 2px;
+                }}
+            """)
+            bar.setValue(min(60, int(val)))
+            label.setText(f"{val:.1f}")
+
+        if clipping is not None:
+            clip_color = "#e74c3c" if clipping > 0 else "#2ecc71"
+            self.lbl_clipping.setStyleSheet(f"color: {clip_color}; font-size: 12px;")
+            self.lbl_clipping.setText(f"Clipping:  {int(clipping)}")
+        else:
+            self.lbl_clipping.setText("Clipping:  --")
+            self.lbl_clipping.setStyleSheet("color: #95a5a6; font-size: 12px;")
+
+
 class MaxValuesPanel(QGroupBox):
     def __init__(self):
         super().__init__("Session Peaks")
@@ -645,6 +730,9 @@ class Dashboard(QMainWindow):
         self.max_panel = MaxValuesPanel()
         layout.addWidget(self.max_panel)
 
+        self.vib_monitor = VibrationMonitor()
+        layout.addWidget(self.vib_monitor)
+
     def _update_battery_estimate(self, raw_a):
         if raw_a is None:
             return
@@ -969,6 +1057,12 @@ class Dashboard(QMainWindow):
                     if self.max_distance is None or dist > self.max_distance:
                         self.max_distance = dist
                         self.max_panel.update("Max Distance", f"{dist:.1f} m")
+
+            vib_x    = self.raw_telemetry.get("VIBRATION.vibration_x")
+            vib_y    = self.raw_telemetry.get("VIBRATION.vibration_y")
+            vib_z    = self.raw_telemetry.get("VIBRATION.vibration_z")
+            clipping = self.raw_telemetry.get("VIBRATION.clipping_0")
+            self.vib_monitor.update(vib_x, vib_y, vib_z, clipping)
 
         except Exception as e:
             self.lbl_status.setText(f"Error: {e}")
