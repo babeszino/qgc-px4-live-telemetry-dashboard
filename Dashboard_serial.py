@@ -40,6 +40,14 @@ LOG_FIELDS = [
     ("pitch_rad",         "ATTITUDE.pitch"),
     ("yaw_rad",           "ATTITUDE.yaw"),
     ("flight_mode",       "HEARTBEAT.custom_mode"),
+    ("arm_status",        "HEARTBEAT.base_mode"),
+    ("lat",               "GPS_RAW_INT.lat"),
+    ("lon",               "GPS_RAW_INT.lon"),
+    ("vib_x",             "VIBRATION.vibration_x"),
+    ("vib_y",             "VIBRATION.vibration_y"),
+    ("vib_z",             "VIBRATION.vibration_z"),
+    ("wp_current",        "MISSION_CURRENT.seq"),
+    ("wp_distance_m",     "NAV_CONTROLLER_OUTPUT.wp_dist"),
 ]
 
 DEFAULT_DYNAMIC_KEYS = [ 
@@ -850,11 +858,16 @@ class Dashboard(QMainWindow):
     def write_log_row(self):
         if not self.log_writer:
             return
-        
         row = {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]}
         for col, raw_key in LOG_FIELDS[1:]:
-            row[col] = self.raw_telemetry.get(raw_key, "")
-
+            if col == "flight_mode":
+                raw_mode = self.raw_telemetry.get("HEARTBEAT.custom_mode")
+                row[col] = decode_px4_mode(raw_mode) if raw_mode is not None else ""
+            elif col == "arm_status":
+                base_mode = self.raw_telemetry.get("HEARTBEAT.base_mode", 0)
+                row[col] = "ARMED" if (base_mode & 128) else "DISARMED"
+            else:
+                row[col] = self.raw_telemetry.get(raw_key, "")
         self.log_writer.writerow(row)
         self.log_file.flush()
 
