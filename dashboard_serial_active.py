@@ -729,14 +729,6 @@ class Dashboard(QMainWindow):
             dynamic_row.addWidget(card)
         layout.addLayout(dynamic_row)
 
-        # --- mission + session peaks side by side ---
-        mid_row = QHBoxLayout()
-        self.mission_card = MissionCard()
-        self.max_panel = MaxValuesPanel()
-        mid_row.addWidget(self.mission_card, stretch=2)
-        mid_row.addWidget(self.max_panel, stretch=1)
-        layout.addLayout(mid_row)
-
         # --- tab widget ---
         tabs = QTabWidget()
         tabs.setStyleSheet("""
@@ -762,8 +754,18 @@ class Dashboard(QMainWindow):
         self.statustext_panel = StatusTextPanel()
         log_layout.addWidget(self.statustext_panel)
 
+        # Mission/Session tab — mission status + session peaks side by side
+        mission_widget = QWidget()
+        mission_layout = QHBoxLayout(mission_widget)
+        mission_layout.setSpacing(10)
+        self.mission_card = MissionCard()
+        self.max_panel = MaxValuesPanel()
+        mission_layout.addWidget(self.mission_card, stretch=2)
+        mission_layout.addWidget(self.max_panel, stretch=1)
+
         tabs.addTab(health_widget, "⬤  Health")
         tabs.addTab(log_widget, "⬤  Log")
+        tabs.addTab(mission_widget, "⬤  Mission / Session")
         layout.addWidget(tabs)
 
     def _update_battery_estimate(self, raw_a):
