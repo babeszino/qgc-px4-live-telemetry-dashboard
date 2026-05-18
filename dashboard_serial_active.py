@@ -6,7 +6,7 @@ import collections
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar, QGridLayout, QTextEdit
+    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar, QGridLayout, QTextEdit, QTabWidget
 )
 from PyQt5.QtCore import QTimer, Qt
 from PyQt5.QtGui import QFont
@@ -441,7 +441,7 @@ class FixedCard(QGroupBox):
         super().__init__(title)
         layout = QVBoxLayout()
         self.label = QLabel(default_text)
-        self.label.setFont(QFont("Arial", 22, QFont.Bold))
+        self.label.setFont(QFont("Arial", 16, QFont.Bold))
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setStyleSheet(f"color: {color}; padding: 10px;")
         layout.addWidget(self.label)
@@ -471,8 +471,8 @@ class DynamicCard(QGroupBox):
         self.combo.currentTextChanged.connect(self._on_combo_changed)
         layout.addWidget(self.combo)
         self.label = QLabel("--")
-        self.label.setFont(QFont("Arial", 26, QFont.Bold))
-        self.label.setStyleSheet("color: #3498db; margin: 16px;")
+        self.label.setFont(QFont("Arial", 18, QFont.Bold))
+        self.label.setStyleSheet("color: #3498db; margin: 8px;")
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
         dot_row = QHBoxLayout()
@@ -665,7 +665,7 @@ class Dashboard(QMainWindow):
         # UDP widgets
         self.lbl_port = QLabel("Listen port:")
         self.lbl_port.setStyleSheet("color: #95a5a6; font-size: 13px;")
-        self.input_port = QLineEdit("14551")
+        self.input_port = QLineEdit("14540")
         self.input_port.setFixedWidth(90)
         top.addWidget(self.lbl_port)
         top.addWidget(self.input_port)
@@ -729,23 +729,42 @@ class Dashboard(QMainWindow):
             dynamic_row.addWidget(card)
         layout.addLayout(dynamic_row)
 
+        # --- mission + session peaks side by side ---
+        mid_row = QHBoxLayout()
         self.mission_card = MissionCard()
-        layout.addWidget(self.mission_card)
-
-        self.sensor_panel = SensorHealthPanel()
-        layout.addWidget(self.sensor_panel)
-
-        self.statustext_panel = StatusTextPanel()
-        layout.addWidget(self.statustext_panel)
-
-        self.motor_panel = MotorOutputPanel()
-        layout.addWidget(self.motor_panel)
-
         self.max_panel = MaxValuesPanel()
-        layout.addWidget(self.max_panel)
+        mid_row.addWidget(self.mission_card, stretch=2)
+        mid_row.addWidget(self.max_panel, stretch=1)
+        layout.addLayout(mid_row)
 
+        # --- tab widget ---
+        tabs = QTabWidget()
+        tabs.setStyleSheet("""
+            QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
+            QTabBar::tab { background: #2c3e50; color: #95a5a6; padding: 6px 20px; font-size: 12px; }
+            QTabBar::tab:selected { background: #1a1a1a; color: white; border-top: 2px solid #3498db; }
+        """)
+
+        # Health tab — sensor health + motor outputs + vibration side by side
+        health_widget = QWidget()
+        health_layout = QHBoxLayout(health_widget)
+        health_layout.setSpacing(10)
+        self.sensor_panel = SensorHealthPanel()
+        self.motor_panel = MotorOutputPanel()
         self.vib_monitor = VibrationMonitor()
-        layout.addWidget(self.vib_monitor)
+        health_layout.addWidget(self.sensor_panel, stretch=2)
+        health_layout.addWidget(self.motor_panel, stretch=1)
+        health_layout.addWidget(self.vib_monitor, stretch=1)
+
+        # Log tab — PX4 messages
+        log_widget = QWidget()
+        log_layout = QVBoxLayout(log_widget)
+        self.statustext_panel = StatusTextPanel()
+        log_layout.addWidget(self.statustext_panel)
+
+        tabs.addTab(health_widget, "⬤  Health")
+        tabs.addTab(log_widget, "⬤  Log")
+        layout.addWidget(tabs)
 
     def _update_battery_estimate(self, raw_a):
         if raw_a is None:
