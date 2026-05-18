@@ -702,19 +702,25 @@ class Dashboard(QMainWindow):
         top.addStretch()
         layout.addLayout(top)
 
-        # --- fixed cards row ---
-        fixed_row = QHBoxLayout()
         self.card_voltage = FixedCard("Voltage",      "--",       "#f1c40f")
         self.card_current = FixedCard("Current",      "--",       "#f39c12")
         self.card_arm     = FixedCard("Arm Status",   "UNKNOWN",  "#95a5a6")
         self.card_mode    = FixedCard("Flight Mode",  "--",       "#3498db")
-        self.card_timer     = FixedCard("Flight Timer",   "00:00:00", "#9b59b6")
-        self.card_home_dist = FixedCard("Home Distance",  "--",       "#1abc9c")
-        self.card_link         = FixedCard("Link Health",  "--",       "#95a5a6")
-        self.card_battery_time = FixedCard("Flight Time Left",   "--",       "#9b59b6")
-        for c in [self.card_voltage, self.card_current, self.card_arm, self.card_mode, self.card_timer, self.card_home_dist, self.card_link, self.card_battery_time]:
-            fixed_row.addWidget(c)
-        layout.addLayout(fixed_row)
+
+        fixed_row1 = QHBoxLayout()
+        for c in [self.card_voltage, self.card_current, self.card_arm, self.card_mode]:
+            fixed_row1.addWidget(c)
+        layout.addLayout(fixed_row1)
+
+        self.card_timer        = FixedCard("Flight Timer",   "00:00:00", "#9b59b6")
+        self.card_home_dist    = FixedCard("Home Distance",  "--",       "#1abc9c")
+        self.card_link         = FixedCard("Link Health",    "--",       "#95a5a6")
+        self.card_battery_time = FixedCard("Time Left",      "--",       "#9b59b6")
+
+        fixed_row2 = QHBoxLayout()
+        for c in [self.card_timer, self.card_home_dist, self.card_link, self.card_battery_time]:
+            fixed_row2.addWidget(c)
+        layout.addLayout(fixed_row2)
 
         # --- dynamic cards row ---
         dynamic_row = QHBoxLayout()
