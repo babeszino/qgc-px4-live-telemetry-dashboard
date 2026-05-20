@@ -829,13 +829,15 @@ class Dashboard(QMainWindow):
         self.mavlink_table = QTableWidget()
         self.mavlink_table.setColumnCount(3)
         self.mavlink_table.setHorizontalHeaderLabels(["Message", "Field", "Value"])
-        self.mavlink_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.mavlink_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
         self.mavlink_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.mavlink_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.mavlink_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
+        self.mavlink_table.setColumnWidth(0, 200)
+        self.mavlink_table.setColumnWidth(2, 130)
         self.mavlink_table.verticalHeader().setVisible(False)
         self.mavlink_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.mavlink_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.mavlink_table.setSortingEnabled(True)
+        self.mavlink_table.setSortingEnabled(False)
         self.mavlink_table.setStyleSheet("""
             QTableWidget {
                 background-color: #0d0d0d; color: #ecf0f1;
@@ -874,17 +876,28 @@ class Dashboard(QMainWindow):
                 formatted = str(value)
             if search and search not in key.lower() and search not in formatted.lower():
                 continue
-            rows.append((msg_type, field, formatted))
+            rows.append((key, msg_type, field, formatted))
 
-        self.mavlink_table.setSortingEnabled(False)
-        self.mavlink_table.setUpdatesEnabled(False)
-        self.mavlink_table.setRowCount(len(rows))
-        for i, (msg_type, field, value) in enumerate(rows):
-            self.mavlink_table.setItem(i, 0, QTableWidgetItem(msg_type))
-            self.mavlink_table.setItem(i, 1, QTableWidgetItem(field))
-            self.mavlink_table.setItem(i, 2, QTableWidgetItem(value))
-        self.mavlink_table.setUpdatesEnabled(True)
-        self.mavlink_table.setSortingEnabled(True)
+        current_keys = [r[0] for r in rows]
+
+        if current_keys != getattr(self, "_mavlink_last_keys", None):
+            self._mavlink_last_keys = current_keys
+            self.mavlink_table.setUpdatesEnabled(False)
+            self.mavlink_table.setRowCount(len(rows))
+            for i, (key, msg_type, field, formatted) in enumerate(rows):
+                self.mavlink_table.setItem(i, 0, QTableWidgetItem(msg_type))
+                self.mavlink_table.setItem(i, 1, QTableWidgetItem(field))
+                self.mavlink_table.setItem(i, 2, QTableWidgetItem(formatted))
+            self.mavlink_table.setUpdatesEnabled(True)
+        else:
+            self.mavlink_table.setUpdatesEnabled(False)
+            for i, (key, msg_type, field, formatted) in enumerate(rows):
+                item = self.mavlink_table.item(i, 2)
+                if item is None:
+                    self.mavlink_table.setItem(i, 2, QTableWidgetItem(formatted))
+                elif item.text() != formatted:
+                    item.setText(formatted)
+            self.mavlink_table.setUpdatesEnabled(True)
 
     def _on_main_tab_changed(self, index):
         if index == 1:
