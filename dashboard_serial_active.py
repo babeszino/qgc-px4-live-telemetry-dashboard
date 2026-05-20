@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar, QGridLayout, QTextEdit, QTabWidget
 )
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, Qt, pyqtSignal
 from PyQt5.QtGui import QFont
 from pymavlink import mavutil
 
@@ -463,11 +463,69 @@ class FixedCard(QGroupBox):
         self.indicator.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
 
 
+class SearchableComboBox(QWidget):
+    currentTextChanged = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        self.search_box = QLineEdit()
+        self.search_box.setPlaceholderText("Search...")
+        self.search_box.setStyleSheet("""
+            background-color: #1a1a1a;
+            color: #ecf0f1;
+            padding: 3px 6px;
+            font-size: 11px;
+            border: 1px solid #3d5166;
+            border-radius: 3px;
+        """)
+        self.search_box.textChanged.connect(self._on_search)
+
+        self.combo = QComboBox()
+        self.combo.currentTextChanged.connect(self.currentTextChanged)
+
+        layout.addWidget(self.search_box)
+        layout.addWidget(self.combo)
+        self._all_items = []
+
+    def _on_search(self, text):
+        current = self.combo.currentText()
+        self.combo.blockSignals(True)
+        self.combo.clear()
+        filtered = [i for i in self._all_items if text.lower() in i.lower()]
+        self.combo.addItems(filtered)
+        if current in filtered:
+            self.combo.setCurrentText(current)
+        self.combo.blockSignals(False)
+        self.currentTextChanged.emit(self.combo.currentText())
+
+    def update_items(self, items, preserve=None):
+        self._all_items = list(items)
+        self.combo.blockSignals(True)
+        self.combo.clear()
+        text = self.search_box.text()
+        filtered = [i for i in self._all_items if text.lower() in i.lower()] if text else self._all_items
+        self.combo.addItems(filtered)
+        if preserve and preserve in filtered:
+            self.combo.setCurrentText(preserve)
+        self.combo.blockSignals(False)
+        self.currentTextChanged.emit(self.combo.currentText())
+
+    def currentText(self):
+        return self.combo.currentText()
+
+    def setCurrentText(self, text):
+        self.combo.setCurrentText(text)
+
+
 class DynamicCard(QGroupBox):
     def __init__(self):
         super().__init__("—")
         layout = QVBoxLayout()
-        self.combo = QComboBox()
+        self.combo = SearchableComboBox()
         self.combo.currentTextChanged.connect(self._on_combo_changed)
         layout.addWidget(self.combo)
         self.label = QLabel("--")
@@ -492,12 +550,7 @@ class DynamicCard(QGroupBox):
     def update_combo(self, display_to_raw):
         self.display_to_raw = display_to_raw
         current = self.combo.currentText()
-        self.combo.blockSignals(True)
-        self.combo.clear()
-        self.combo.addItems(list(display_to_raw.keys()))
-        if current in display_to_raw:
-            self.combo.setCurrentText(current)
-        self.combo.blockSignals(False)
+        self.combo.update_items(list(display_to_raw.keys()), preserve=current)
         self._on_combo_changed(self.combo.currentText())
 
     def set_default(self, raw_key, display_to_raw):
