@@ -6,7 +6,8 @@ import collections
 from datetime import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar, QGridLayout, QTextEdit, QTabWidget
+    QLabel, QGroupBox, QPushButton, QComboBox, QLineEdit, QProgressBar,
+    QGridLayout, QTextEdit, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt5.QtCore import QTimer, Qt, pyqtSignal
 from PyQt5.QtGui import QFont
@@ -697,129 +698,200 @@ class Dashboard(QMainWindow):
         self.max_current  = None
         self.max_distance = None
 
+        self.mavlink_table_timer = QTimer()
+        self.mavlink_table_timer.timeout.connect(self.update_mavlink_table)
+
         self.setup_ui()
 
     def setup_ui(self):
         root = QWidget()
         self.setCentralWidget(root)
-        layout = QVBoxLayout(root)
-        layout.setSpacing(10)
+        main_layout = QVBoxLayout(root)
+        main_layout.setSpacing(10)
 
-        # --- top bar ---
         top = QHBoxLayout()
         top.setSpacing(10)
 
-        self.combo_conn_type = QComboBox()
-        self.combo_conn_type.addItems(["UDP (SITL)", "Serial (RFD868x)"])
-        self.combo_conn_type.setFixedWidth(160)
-        self.combo_conn_type.currentIndexChanged.connect(self._on_conn_type_changed)
-        top.addWidget(self.combo_conn_type)
-
-        # UDP widgets
-        self.lbl_port = QLabel("Listen port:")
-        self.lbl_port.setStyleSheet("color: #95a5a6; font-size: 13px;")
+        lbl_port = QLabel("Listen port:")
+        lbl_port.setStyleSheet("color: #95a5a6; font-size: 13px;")
         self.input_port = QLineEdit("14540")
         self.input_port.setFixedWidth(90)
-        top.addWidget(self.lbl_port)
-        top.addWidget(self.input_port)
-
-        # Serial widgets (hidden by default)
-        self.lbl_com = QLabel("COM port:")
-        self.lbl_com.setStyleSheet("color: #95a5a6; font-size: 13px;")
-        self.input_com = QLineEdit("COM3")
-        self.input_com.setFixedWidth(90)
-        self.lbl_baud = QLabel("Baud:")
-        self.lbl_baud.setStyleSheet("color: #95a5a6; font-size: 13px;")
-        self.combo_baud = QComboBox()
-        self.combo_baud.addItems(["57600", "115200", "38400", "19200"])
-        self.combo_baud.setFixedWidth(100)
-        top.addWidget(self.lbl_com)
-        top.addWidget(self.input_com)
-        top.addWidget(self.lbl_baud)
-        top.addWidget(self.combo_baud)
-        self.lbl_com.hide()
-        self.input_com.hide()
-        self.lbl_baud.hide()
-        self.combo_baud.hide()
 
         self.btn_connect = QPushButton("Connect")
         self.btn_connect.setFixedWidth(130)
         self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
         self.btn_connect.clicked.connect(self.toggle_connection)
-        top.addWidget(self.btn_connect)
-        top.addSpacing(16)
 
         self.lbl_status = QLabel("Waiting...")
         self.lbl_status.setStyleSheet("color: #7f8c8d; font-size: 13px;")
+
+        top.addWidget(lbl_port)
+        top.addWidget(self.input_port)
+        top.addWidget(self.btn_connect)
+        top.addSpacing(16)
         top.addWidget(self.lbl_status)
         top.addStretch()
-        layout.addLayout(top)
+        main_layout.addLayout(top)
 
-        self.card_voltage = FixedCard("Voltage",      "--",       "#f1c40f")
-        self.card_current = FixedCard("Current",      "--",       "#f39c12")
-        self.card_arm     = FixedCard("Arm Status",   "UNKNOWN",  "#95a5a6")
-        self.card_mode    = FixedCard("Flight Mode",  "--",       "#3498db")
+        self.main_tabs = QTabWidget()
+        self.main_tabs.setStyleSheet("""
+            QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
+            QTabBar::tab { background: #2c3e50; color: #95a5a6; padding: 8px 24px; font-size: 13px; font-weight: bold; }
+            QTabBar::tab:selected { background: #1a1a1a; color: white; border-top: 2px solid #3498db; }
+        """)
+        self.main_tabs.currentChanged.connect(self._on_main_tab_changed)
+        main_layout.addWidget(self.main_tabs)
 
+        dashboard_widget = QWidget()
+        layout = QVBoxLayout(dashboard_widget)
+        layout.setSpacing(10)
+
+        self.card_voltage = FixedCard("Voltage",     "--",      "#f1c40f")
+        self.card_current = FixedCard("Current",     "--",      "#f39c12")
+        self.card_arm     = FixedCard("Arm Status",  "UNKNOWN", "#95a5a6")
+        self.card_mode    = FixedCard("Flight Mode", "--",      "#3498db")
         fixed_row1 = QHBoxLayout()
         for c in [self.card_voltage, self.card_current, self.card_arm, self.card_mode]:
             fixed_row1.addWidget(c)
         layout.addLayout(fixed_row1)
 
-        self.card_timer        = FixedCard("Flight Timer",   "00:00:00", "#9b59b6")
-        self.card_home_dist    = FixedCard("Home Distance",  "--",       "#1abc9c")
-        self.card_link         = FixedCard("Link Health",    "--",       "#95a5a6")
-        self.card_battery_time = FixedCard("Time Left",      "--",       "#9b59b6")
-
+        self.card_timer        = FixedCard("Flight Timer",  "00:00:00", "#9b59b6")
+        self.card_home_dist    = FixedCard("Home Distance", "--",       "#1abc9c")
+        self.card_link         = FixedCard("Link Health",   "--",       "#95a5a6")
+        self.card_battery_time = FixedCard("Time Left",     "--",       "#9b59b6")
         fixed_row2 = QHBoxLayout()
         for c in [self.card_timer, self.card_home_dist, self.card_link, self.card_battery_time]:
             fixed_row2.addWidget(c)
         layout.addLayout(fixed_row2)
 
-        # --- dynamic cards row ---
         dynamic_row = QHBoxLayout()
         self.dynamic_cards = [DynamicCard() for _ in range(4)]
         for card in self.dynamic_cards:
             dynamic_row.addWidget(card)
         layout.addLayout(dynamic_row)
 
-        # --- tab widget ---
-        tabs = QTabWidget()
-        tabs.setStyleSheet("""
+        inner_tabs = QTabWidget()
+        inner_tabs.setStyleSheet("""
             QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
             QTabBar::tab { background: #2c3e50; color: #95a5a6; padding: 6px 20px; font-size: 12px; }
             QTabBar::tab:selected { background: #1a1a1a; color: white; border-top: 2px solid #3498db; }
         """)
 
-        # Health tab — sensor health + motor outputs + vibration side by side
         health_widget = QWidget()
         health_layout = QHBoxLayout(health_widget)
         health_layout.setSpacing(10)
         self.sensor_panel = SensorHealthPanel()
-        self.motor_panel = MotorOutputPanel()
-        self.vib_monitor = VibrationMonitor()
+        self.motor_panel  = MotorOutputPanel()
+        self.vib_monitor  = VibrationMonitor()
         health_layout.addWidget(self.sensor_panel, stretch=2)
-        health_layout.addWidget(self.motor_panel, stretch=1)
-        health_layout.addWidget(self.vib_monitor, stretch=1)
+        health_layout.addWidget(self.motor_panel,  stretch=1)
+        health_layout.addWidget(self.vib_monitor,  stretch=1)
 
-        # Log tab — PX4 messages
         log_widget = QWidget()
         log_layout = QVBoxLayout(log_widget)
         self.statustext_panel = StatusTextPanel()
         log_layout.addWidget(self.statustext_panel)
 
-        # Mission/Session tab — mission status + session peaks side by side
         mission_widget = QWidget()
         mission_layout = QHBoxLayout(mission_widget)
         mission_layout.setSpacing(10)
         self.mission_card = MissionCard()
-        self.max_panel = MaxValuesPanel()
+        self.max_panel    = MaxValuesPanel()
         mission_layout.addWidget(self.mission_card, stretch=2)
-        mission_layout.addWidget(self.max_panel, stretch=1)
+        mission_layout.addWidget(self.max_panel,    stretch=1)
 
-        tabs.addTab(health_widget, "⬤  Health")
-        tabs.addTab(log_widget, "⬤  Log")
-        tabs.addTab(mission_widget, "⬤  Mission / Session")
-        layout.addWidget(tabs)
+        inner_tabs.addTab(health_widget,   "⬤  Health")
+        inner_tabs.addTab(log_widget,      "⬤  Log")
+        inner_tabs.addTab(mission_widget,  "⬤  Mission / Session")
+        layout.addWidget(inner_tabs)
+
+        self.main_tabs.addTab(dashboard_widget, "Dashboard")
+
+        inspector_widget = QWidget()
+        inspector_layout = QVBoxLayout(inspector_widget)
+        inspector_layout.setSpacing(8)
+
+        search_row = QHBoxLayout()
+        lbl_search = QLabel("Filter:")
+        lbl_search.setStyleSheet("color: #95a5a6; font-size: 13px;")
+        self.mavlink_search = QLineEdit()
+        self.mavlink_search.setPlaceholderText("Type to filter by message or field name...")
+        self.mavlink_search.setStyleSheet("""
+            background-color: #1a1a1a; color: #ecf0f1;
+            padding: 6px 10px; font-size: 13px;
+            border: 1px solid #3d5166; border-radius: 4px;
+        """)
+        self.mavlink_search.textChanged.connect(self.update_mavlink_table)
+        search_row.addWidget(lbl_search)
+        search_row.addWidget(self.mavlink_search)
+        inspector_layout.addLayout(search_row)
+
+        self.mavlink_table = QTableWidget()
+        self.mavlink_table.setColumnCount(3)
+        self.mavlink_table.setHorizontalHeaderLabels(["Message", "Field", "Value"])
+        self.mavlink_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.mavlink_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.mavlink_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.mavlink_table.verticalHeader().setVisible(False)
+        self.mavlink_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.mavlink_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.mavlink_table.setSortingEnabled(True)
+        self.mavlink_table.setStyleSheet("""
+            QTableWidget {
+                background-color: #0d0d0d; color: #ecf0f1;
+                font-family: Consolas, monospace; font-size: 12px;
+                border: 1px solid #2c3e50; gridline-color: #1a1a1a;
+            }
+            QTableWidget::item:selected { background-color: #2c3e50; }
+            QHeaderView::section {
+                background-color: #2c3e50; color: #ecf0f1;
+                padding: 6px; border: none; font-weight: bold;
+            }
+        """)
+        inspector_layout.addWidget(self.mavlink_table)
+
+        self.main_tabs.addTab(inspector_widget, "MAVLink Inspector")
+
+    def update_mavlink_table(self):
+        if not self.raw_telemetry:
+            return
+
+        try:
+            snapshot = dict(self.raw_telemetry)
+        except Exception:
+            return
+
+        search = self.mavlink_search.text().lower()
+
+        rows = []
+        for key, value in sorted(snapshot.items()):
+            parts = key.split(".", 1)
+            msg_type = parts[0]
+            field    = parts[1] if len(parts) > 1 else ""
+            try:
+                formatted = format_value(key, value)
+            except Exception:
+                formatted = str(value)
+            if search and search not in key.lower() and search not in formatted.lower():
+                continue
+            rows.append((msg_type, field, formatted))
+
+        self.mavlink_table.setSortingEnabled(False)
+        self.mavlink_table.setUpdatesEnabled(False)
+        self.mavlink_table.setRowCount(len(rows))
+        for i, (msg_type, field, value) in enumerate(rows):
+            self.mavlink_table.setItem(i, 0, QTableWidgetItem(msg_type))
+            self.mavlink_table.setItem(i, 1, QTableWidgetItem(field))
+            self.mavlink_table.setItem(i, 2, QTableWidgetItem(value))
+        self.mavlink_table.setUpdatesEnabled(True)
+        self.mavlink_table.setSortingEnabled(True)
+
+    def _on_main_tab_changed(self, index):
+        if index == 1:
+            self.mavlink_table_timer.start(500)
+            QTimer.singleShot(0, self.update_mavlink_table)
+        else:
+            self.mavlink_table_timer.stop()
 
     def _update_battery_estimate(self, raw_a):
         if raw_a is None:
@@ -877,38 +949,19 @@ class Dashboard(QMainWindow):
         s = self.flight_seconds % 60
         self.card_timer.set_text(f"{h:02d}:{m:02d}:{s:02d}", "#9b59b6")
 
-    def _on_conn_type_changed(self, index):
-        is_serial = index == 1
-        self.lbl_port.setVisible(not is_serial)
-        self.input_port.setVisible(not is_serial)
-        self.lbl_com.setVisible(is_serial)
-        self.input_com.setVisible(is_serial)
-        self.lbl_baud.setVisible(is_serial)
-        self.combo_baud.setVisible(is_serial)
-
     def _set_inputs_enabled(self, enabled):
-        self.combo_conn_type.setEnabled(enabled)
         self.input_port.setEnabled(enabled)
-        self.input_com.setEnabled(enabled)
-        self.combo_baud.setEnabled(enabled)
 
     def toggle_connection(self):
         if self.is_connected or self.is_connecting:
             self.disconnect()
             return
         try:
-            is_serial = self.combo_conn_type.currentIndex() == 1
-            if is_serial:
-                com  = self.input_com.text().strip()
-                baud = self.combo_baud.currentText()
-                conn_str = f"{com}:{baud}"
-                status_msg = f"Connecting to {com} @ {baud} baud..."
-            else:
-                port = self.input_port.text().strip()
-                conn_str = f"udpin:0.0.0.0:{port}"
-                status_msg = f"Listening on UDP port {port}..."
+            port = self.input_port.text().strip()
+            conn_str = f"udpin:0.0.0.0:{port}"
+            status_msg = f"Listening on UDP port {port}..."
 
-            self.master = mavutil.mavlink_connection(conn_str, baud=int(self.combo_baud.currentText()) if is_serial else 0)
+            self.master = mavutil.mavlink_connection(conn_str)
             self.is_connecting = True
             self.defaults_applied = False
             self._set_inputs_enabled(False)
@@ -957,6 +1010,7 @@ class Dashboard(QMainWindow):
         self.heartbeat_timer.stop()
         self.data_timer.stop()
         self.health_timer.stop()
+        self.mavlink_table_timer.stop()
         self.card_link.set_text("--", "#95a5a6")
         self.stop_arm_log()
         self.raw_telemetry.clear()
