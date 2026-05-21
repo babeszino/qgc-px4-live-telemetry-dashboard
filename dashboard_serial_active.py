@@ -58,7 +58,7 @@ DEFAULT_DYNAMIC_KEYS = [
     "ATTITUDE.yaw",
 ]
 
-STYLE = """
+DARK_STYLE = """
     QMainWindow, QWidget { background-color: #0a0a0a; color: #ecf0f1; font-family: Consolas, Arial; }
     QGroupBox { border: 2px solid #2c3e50; border-radius: 6px; margin-top: 10px; font-weight: bold; padding: 6px; }
     QGroupBox::title { padding: 0 4px; }
@@ -66,6 +66,16 @@ STYLE = """
     QComboBox::drop-down { border: none; }
     QPushButton { padding: 10px 20px; font-weight: bold; font-size: 13px; border-radius: 5px; border: none; }
     QLineEdit { background-color: #2c3e50; color: white; padding: 8px 10px; font-size: 13px; border: 1px solid #3d5166; border-radius: 4px; }
+"""
+
+LIGHT_STYLE = """
+    QMainWindow, QWidget { background-color: #f0f0f0; color: #1a1a1a; font-family: Consolas, Arial; }
+    QGroupBox { border: 2px solid #bdc3c7; border-radius: 6px; margin-top: 10px; font-weight: bold; padding: 6px; color: #1a1a1a; }
+    QGroupBox::title { padding: 0 4px; }
+    QComboBox { background-color: #dde3ea; color: #1a1a1a; padding: 6px; font-size: 12px; border: none; border-radius: 3px; }
+    QComboBox::drop-down { border: none; }
+    QPushButton { padding: 10px 20px; font-weight: bold; font-size: 13px; border-radius: 5px; border: none; }
+    QLineEdit { background-color: #ffffff; color: #1a1a1a; padding: 8px 10px; font-size: 13px; border: 1px solid #bdc3c7; border-radius: 4px; }
 """
 
 
@@ -476,11 +486,11 @@ class SearchableComboBox(QWidget):
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText("Search...")
         self.search_box.setStyleSheet("""
-            background-color: #1a1a1a;
-            color: #ecf0f1;
+            background-color: #ffffff;
+            color: #1a1a1a;
             padding: 3px 6px;
             font-size: 11px;
-            border: 1px solid #3d5166;
+            border: 1px solid #bdc3c7;
             border-radius: 3px;
         """)
         self.search_box.textChanged.connect(self._on_search)
@@ -652,7 +662,8 @@ class Dashboard(QMainWindow):
         super().__init__()
         self.setWindowTitle("PX4 Telemetry Dashboard")
         self.resize(1200, 520)
-        self.setStyleSheet(STYLE)
+        self._dark_mode = False
+        self.setStyleSheet(LIGHT_STYLE)
 
         self.master = None
         self.is_connected = False
@@ -731,13 +742,19 @@ class Dashboard(QMainWindow):
         top.addSpacing(16)
         top.addWidget(self.lbl_status)
         top.addStretch()
+        self.btn_theme = QPushButton("☀")
+        self.btn_theme.setFixedSize(36, 36)
+        self.btn_theme.setStyleSheet("background-color: #bdc3c7; color: #1a1a1a; font-size: 16px; padding: 0;")
+        self.btn_theme.setToolTip("Toggle light/dark theme")
+        self.btn_theme.clicked.connect(self.toggle_theme)
+        top.addWidget(self.btn_theme)
         main_layout.addLayout(top)
 
         self.main_tabs = QTabWidget()
         self.main_tabs.setStyleSheet("""
-            QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
-            QTabBar::tab { background: #2c3e50; color: #95a5a6; padding: 8px 24px; font-size: 13px; font-weight: bold; }
-            QTabBar::tab:selected { background: #1a1a1a; color: white; border-top: 2px solid #3498db; }
+            QTabWidget::pane { border: 2px solid #bdc3c7; border-radius: 4px; }
+            QTabBar::tab { background: #dde3ea; color: #555; padding: 8px 24px; font-size: 13px; font-weight: bold; }
+            QTabBar::tab:selected { background: #ffffff; color: #1a1a1a; border-top: 2px solid #3498db; }
         """)
         self.main_tabs.currentChanged.connect(self._on_main_tab_changed)
         main_layout.addWidget(self.main_tabs)
@@ -770,11 +787,11 @@ class Dashboard(QMainWindow):
             dynamic_row.addWidget(card)
         layout.addLayout(dynamic_row)
 
-        inner_tabs = QTabWidget()
-        inner_tabs.setStyleSheet("""
-            QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
-            QTabBar::tab { background: #2c3e50; color: #95a5a6; padding: 6px 20px; font-size: 12px; }
-            QTabBar::tab:selected { background: #1a1a1a; color: white; border-top: 2px solid #3498db; }
+        self.inner_tabs = QTabWidget()
+        self.inner_tabs.setStyleSheet("""
+            QTabWidget::pane { border: 2px solid #bdc3c7; border-radius: 4px; }
+            QTabBar::tab { background: #dde3ea; color: #555; padding: 6px 20px; font-size: 12px; }
+            QTabBar::tab:selected { background: #ffffff; color: #1a1a1a; border-top: 2px solid #3498db; }
         """)
 
         health_widget = QWidget()
@@ -800,10 +817,10 @@ class Dashboard(QMainWindow):
         mission_layout.addWidget(self.mission_card, stretch=2)
         mission_layout.addWidget(self.max_panel,    stretch=1)
 
-        inner_tabs.addTab(health_widget,   "⬤  Health")
-        inner_tabs.addTab(log_widget,      "⬤  Log")
-        inner_tabs.addTab(mission_widget,  "⬤  Mission / Session")
-        layout.addWidget(inner_tabs)
+        self.inner_tabs.addTab(health_widget,   "⬤  Health")
+        self.inner_tabs.addTab(log_widget,      "⬤  Log")
+        self.inner_tabs.addTab(mission_widget,  "⬤  Mission / Session")
+        layout.addWidget(self.inner_tabs)
 
         self.main_tabs.addTab(dashboard_widget, "Dashboard")
 
@@ -817,9 +834,9 @@ class Dashboard(QMainWindow):
         self.mavlink_search = QLineEdit()
         self.mavlink_search.setPlaceholderText("Type to filter by message or field name...")
         self.mavlink_search.setStyleSheet("""
-            background-color: #1a1a1a; color: #ecf0f1;
+            background-color: #ffffff; color: #1a1a1a;
             padding: 6px 10px; font-size: 13px;
-            border: 1px solid #3d5166; border-radius: 4px;
+            border: 1px solid #bdc3c7; border-radius: 4px;
         """)
         self.mavlink_search.textChanged.connect(self.update_mavlink_table)
         search_row.addWidget(lbl_search)
@@ -840,19 +857,104 @@ class Dashboard(QMainWindow):
         self.mavlink_table.setSortingEnabled(False)
         self.mavlink_table.setStyleSheet("""
             QTableWidget {
-                background-color: #0d0d0d; color: #ecf0f1;
+                background-color: #ffffff; color: #1a1a1a;
                 font-family: Consolas, monospace; font-size: 12px;
-                border: 1px solid #2c3e50; gridline-color: #1a1a1a;
+                border: 1px solid #bdc3c7; gridline-color: #e0e0e0;
             }
-            QTableWidget::item:selected { background-color: #2c3e50; }
+            QTableWidget::item:selected { background-color: #dde3ea; }
             QHeaderView::section {
-                background-color: #2c3e50; color: #ecf0f1;
-                padding: 6px; border: none; font-weight: bold;
+                background-color: #dde3ea; color: #1a1a1a;
+                padding: 6px; border: none; font-weight: bold; font-size: 12px;
             }
         """)
         inspector_layout.addWidget(self.mavlink_table)
 
         self.main_tabs.addTab(inspector_widget, "MAVLink Inspector")
+        self._apply_bar_styles(dark=False)
+
+    def _apply_bar_styles(self, dark):
+        if dark:
+            bar_bg     = "#1a1a1a"
+            bar_border = "#2c3e50"
+        else:
+            bar_bg     = "#e0e0e0"
+            bar_border = "#bdc3c7"
+
+        motor_style = """
+            QProgressBar {{ border: 1px solid {border}; border-radius: 3px; background-color: {bg}; text-align: center; }}
+            QProgressBar::chunk {{ background-color: #2980b9; border-radius: 2px; }}
+        """.format(bg=bar_bg, border=bar_border)
+
+        vib_style = """
+            QProgressBar {{ border: 1px solid {border}; border-radius: 3px; background-color: {bg}; text-align: center; }}
+            QProgressBar::chunk {{ background-color: #2ecc71; border-radius: 2px; }}
+        """.format(bg=bar_bg, border=bar_border)
+
+        for bar in self.motor_panel.bars:
+            bar.setStyleSheet(motor_style)
+        for bar in self.vib_monitor.bars.values():
+            bar.setStyleSheet(vib_style)
+
+    def toggle_theme(self):
+        self._dark_mode = not self._dark_mode
+        style = DARK_STYLE if self._dark_mode else LIGHT_STYLE
+
+        if self._dark_mode:
+            self.btn_theme.setText("☀")
+            self.btn_theme.setStyleSheet("background-color: #2c3e50; color: white; font-size: 16px; padding: 0;")
+            tab_style = """
+                QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
+                QTabBar::tab { background: #2c3e50; color: #95a5a6; padding: 8px 24px; font-size: 13px; font-weight: bold; }
+                QTabBar::tab:selected { background: #1a1a1a; color: white; border-top: 2px solid #3498db; }
+            """
+            log_style = "QTextEdit { background-color: #0d0d0d; color: #ecf0f1; font-family: Consolas; font-size: 12px; border: 1px solid #2c3e50; }"
+        else:
+            self.btn_theme.setText("☀")
+            self.btn_theme.setStyleSheet("background-color: #bdc3c7; color: #1a1a1a; font-size: 16px; padding: 0;")
+            tab_style = """
+                QTabWidget::pane { border: 2px solid #bdc3c7; border-radius: 4px; }
+                QTabBar::tab { background: #dde3ea; color: #555; padding: 8px 24px; font-size: 13px; font-weight: bold; }
+                QTabBar::tab:selected { background: #ffffff; color: #1a1a1a; border-top: 2px solid #3498db; }
+            """
+            log_style = "QTextEdit { background-color: #ffffff; color: #1a1a1a; font-family: Consolas; font-size: 12px; border: 1px solid #bdc3c7; }"
+
+        self.setStyleSheet(style)
+        self.main_tabs.setStyleSheet(tab_style)
+        self.statustext_panel.log.setStyleSheet(log_style)
+        self._apply_bar_styles(dark=self._dark_mode)
+
+        if self._dark_mode:
+            inner_tab_style = """
+                QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
+                QTabBar::tab { background: #2c3e50; color: #95a5a6; padding: 6px 20px; font-size: 12px; }
+                QTabBar::tab:selected { background: #1a1a1a; color: white; border-top: 2px solid #3498db; }
+            """
+            search_box_style = "background-color: #1a1a1a; color: #ecf0f1; padding: 3px 6px; font-size: 11px; border: 1px solid #3d5166; border-radius: 3px;"
+            mavlink_search_style = "background-color: #1a1a1a; color: #ecf0f1; padding: 6px 10px; font-size: 13px; border: 1px solid #3d5166; border-radius: 4px;"
+            mavlink_table_style = """
+                QTableWidget { background-color: #0d0d0d; color: #ecf0f1; font-family: Consolas, monospace; font-size: 12px; border: 1px solid #2c3e50; gridline-color: #1a1a1a; }
+                QTableWidget::item:selected { background-color: #2c3e50; }
+                QHeaderView::section { background-color: #1a2535; color: #ecf0f1; padding: 6px; border: none; font-weight: bold; font-size: 12px; }
+            """
+        else:
+            inner_tab_style = """
+                QTabWidget::pane { border: 2px solid #bdc3c7; border-radius: 4px; }
+                QTabBar::tab { background: #dde3ea; color: #555; padding: 6px 20px; font-size: 12px; }
+                QTabBar::tab:selected { background: #ffffff; color: #1a1a1a; border-top: 2px solid #3498db; }
+            """
+            search_box_style = "background-color: #ffffff; color: #1a1a1a; padding: 3px 6px; font-size: 11px; border: 1px solid #bdc3c7; border-radius: 3px;"
+            mavlink_search_style = "background-color: #ffffff; color: #1a1a1a; padding: 6px 10px; font-size: 13px; border: 1px solid #bdc3c7; border-radius: 4px;"
+            mavlink_table_style = """
+                QTableWidget { background-color: #ffffff; color: #1a1a1a; font-family: Consolas, monospace; font-size: 12px; border: 1px solid #bdc3c7; gridline-color: #e0e0e0; }
+                QTableWidget::item:selected { background-color: #dde3ea; }
+                QHeaderView::section { background-color: #dde3ea; color: #1a1a1a; padding: 6px; border: none; font-weight: bold; font-size: 12px; }
+            """
+
+        self.inner_tabs.setStyleSheet(inner_tab_style)
+        self.mavlink_search.setStyleSheet(mavlink_search_style)
+        self.mavlink_table.setStyleSheet(mavlink_table_style)
+        for card in self.dynamic_cards:
+            card.combo.search_box.setStyleSheet(search_box_style)
 
     def update_mavlink_table(self):
         if not self.raw_telemetry:
