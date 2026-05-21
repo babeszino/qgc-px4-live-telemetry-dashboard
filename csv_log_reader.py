@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFileDialog, QTableWidget, QTableWidgetItem,
     QHeaderView, QGroupBox, QGridLayout, QSizePolicy, QCheckBox,
-    QScrollArea, QTabWidget, QFrame
+    QScrollArea, QTabWidget, QFrame, QLineEdit
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
@@ -298,7 +298,7 @@ class LogViewer(QMainWindow):
         top = QHBoxLayout()
         self.lbl_file = QLabel("No file loaded")
         self.lbl_file.setStyleSheet("color: #7f8c8d; font-size: 13px;")
-        self.btn_load = QPushButton("LOAD Log File")
+        self.btn_load = QPushButton("Load Log File")
         self.btn_load.setStyleSheet("background-color: #2980b9; color: white;")
         self.btn_load.setFixedWidth(180)
         self.btn_load.clicked.connect(self.load_file)
@@ -309,8 +309,9 @@ class LogViewer(QMainWindow):
 
         self.main_tabs = QTabWidget()
         main.addWidget(self.main_tabs)
-        self.main_tabs.addTab(self._build_summary_tab(), "Flight Summary")
-        self.main_tabs.addTab(self._build_graphs_tab(),  "Telemetry Graphs")
+        self.main_tabs.addTab(self._build_summary_tab(), "Flight summary")
+        self.main_tabs.addTab(self._build_graphs_tab(),  "Telemetry graphs")
+        self.main_tabs.addTab(self._build_anomaly_tab(), "Anomalies")
 
         self.lbl_status = QLabel("Load a log file to get started.")
         self.lbl_status.setStyleSheet("color: #7f8c8d; font-size: 12px;")
@@ -389,7 +390,7 @@ class LogViewer(QMainWindow):
         scroll.setWidget(cb_container)
         sb_lay.addWidget(scroll)
 
-        self.btn_plot = QPushButton("▶  Plot")
+        self.btn_plot = QPushButton("PLOT")
         self.btn_plot.setStyleSheet("background-color: #27ae60; color: white;")
         self.btn_plot.clicked.connect(self._do_plot)
         sb_lay.addWidget(self.btn_plot)
@@ -433,6 +434,7 @@ class LogViewer(QMainWindow):
         self._populate_table()
         self._populate_summary()
         self._populate_checkboxes()
+        self._run_anomaly_detection()
         self.lbl_status.setText(
             f"Loaded {len(self._rows)} rows  ·  "
             f"{len(self._columns)} columns  ·  {path}"
@@ -550,6 +552,215 @@ class LogViewer(QMainWindow):
             series.append((col, name, unit, values, color))
         self.canvas.plot(time_labels, series)
         self.main_tabs.setCurrentIndex(1)
+
+    def _build_anomaly_tab(self):
+        w = QWidget()
+        lay = QHBoxLayout(w)
+        lay.setContentsMargins(10, 10, 10, 10)
+        lay.setSpacing(10)
+
+        sidebar = QGroupBox("Thresholds")
+        sidebar.setFixedWidth(220)
+        sb = QVBoxLayout(sidebar)
+        sb.setSpacing(6)
+
+        def thresh_row(label, default):
+            row = QHBoxLayout()
+            lbl = QLabel(label)
+            lbl.setStyleSheet("color: #95a5a6; font-size: 11px;")
+            lbl.setFixedWidth(140)
+            inp = QLineEdit(default)
+            inp.setFixedWidth(55)
+            inp.setStyleSheet(
+                "background:#1a1a1a; color:#ecf0f1; "
+                "padding:3px; border:1px solid #3d5166; border-radius:3px;"
+            )
+            row.addWidget(lbl)
+            row.addWidget(inp)
+            sb.addLayout(row)
+            return inp
+
+        sb.addWidget(QLabel("Voltage"))
+        self.t_volt_warn = thresh_row("Warning below (V):",  "14.0")
+        self.t_volt_crit = thresh_row("Critical below (V):", "13.0")
+        sb.addWidget(self._sep())
+
+        sb.addWidget(QLabel("Vibration"))
+        self.t_vib_warn = thresh_row("Warning above:",  "30.0")
+        self.t_vib_crit = thresh_row("Critical above:", "60.0")
+        sb.addWidget(self._sep())
+
+        sb.addWidget(QLabel("GPS Satellites"))
+        self.t_gps_warn = thresh_row("Warning below:", "6")
+        self.t_gps_crit = thresh_row("Critical below:", "4")
+        sb.addWidget(self._sep())
+
+        sb.addWidget(QLabel("Altitude"))
+        self.t_alt_jump = thresh_row("Jump warning (m):", "8.0")
+        sb.addWidget(self._sep())
+
+        sb.addWidget(QLabel("Current"))
+        self.t_curr_warn = thresh_row("Warning above (A):", "40.0")
+
+        sb.addStretch()
+        btn_detect = QPushButton("Run detection")
+        btn_detect.setStyleSheet("background-color: #2980b9; color: white;")
+        btn_detect.clicked.connect(self._run_anomaly_detection)
+        sb.addWidget(btn_detect)
+        lay.addWidget(sidebar)
+
+        right = QWidget()
+        rl = QVBoxLayout(right)
+        rl.setContentsMargins(0, 0, 0, 0)
+        rl.setSpacing(8)
+
+        badge_row = QHBoxLayout()
+        self.badge_crit = self._badge("Critical: --",    "#e74c3c")
+        self.badge_warn = self._badge("Warnings: --",    "#f39c12")
+        self.badge_info = self._badge("Info events: --", "#3498db")
+        badge_row.addWidget(self.badge_crit)
+        badge_row.addWidget(self.badge_warn)
+        badge_row.addWidget(self.badge_info)
+        badge_row.addStretch()
+        rl.addLayout(badge_row)
+
+        self.anomaly_table = QTableWidget()
+        self.anomaly_table.setColumnCount(4)
+        self.anomaly_table.setHorizontalHeaderLabels(
+            ["Severity", "Timestamp", "Type", "Details"]
+        )
+        self.anomaly_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.anomaly_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.anomaly_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.anomaly_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
+        self.anomaly_table.verticalHeader().setVisible(False)
+        self.anomaly_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.anomaly_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.anomaly_table.setSortingEnabled(True)
+        self.anomaly_table.setAlternatingRowColors(True)
+        self.anomaly_table.setStyleSheet(
+            "QTableWidget { alternate-background-color: #0f0f0f; }"
+        )
+        rl.addWidget(self.anomaly_table)
+        lay.addWidget(right)
+        return w
+
+    def _sep(self):
+        sep = QFrame()
+        sep.setFrameShape(QFrame.HLine)
+        sep.setStyleSheet("color: #2c3e50; margin: 2px 0;")
+        return sep
+
+    def _badge(self, text, color):
+        lbl = QLabel(text)
+        lbl.setStyleSheet(f"""
+            background-color: #111; border: 2px solid {color};
+            border-radius: 6px; color: {color};
+            font-weight: bold; font-size: 13px; padding: 6px 16px;
+        """)
+        return lbl
+
+    def _run_anomaly_detection(self):
+        if not self._rows:
+            return
+        try:
+            v_warn  = float(self.t_volt_warn.text())
+            v_crit  = float(self.t_volt_crit.text())
+            vib_w   = float(self.t_vib_warn.text())
+            vib_c   = float(self.t_vib_crit.text())
+            gps_w   = int(float(self.t_gps_warn.text()))
+            gps_c   = int(float(self.t_gps_crit.text()))
+            alt_j   = float(self.t_alt_jump.text())
+            curr_w  = float(self.t_curr_warn.text())
+        except ValueError:
+            return
+
+        anomalies = []
+        prev_mode = None
+        prev_arm  = None
+        prev_alt  = None
+        SEV_COLORS = {"CRITICAL": "#e74c3c", "WARNING": "#f39c12", "INFO": "#3498db"}
+
+        def add(sev, ts, typ, detail):
+            anomalies.append((sev, ts, typ, detail))
+
+        for row in self._rows:
+            ts = row.get("timestamp", "")
+
+            try:
+                v = float(row["voltage_mV"]) / 1000
+                if v > 0:
+                    if v < v_crit:
+                        add("CRITICAL", ts, "Low Voltage", f"{v:.2f} V  (critical ≤ {v_crit} V)")
+                    elif v < v_warn:
+                        add("WARNING",  ts, "Low Voltage", f"{v:.2f} V  (warning ≤ {v_warn} V)")
+            except Exception: pass
+
+            for axis in ("vib_x", "vib_y", "vib_z"):
+                try:
+                    vib = abs(float(row[axis]))
+                    ax  = axis[-1].upper()
+                    if vib > vib_c:
+                        add("CRITICAL", ts, f"High Vibration {ax}", f"{vib:.2f}  (critical > {vib_c})")
+                    elif vib > vib_w:
+                        add("WARNING",  ts, f"High Vibration {ax}", f"{vib:.2f}  (warning > {vib_w})")
+                except Exception: pass
+
+            try:
+                sats = int(float(row["gps_satellites"]))
+                if sats < gps_c:
+                    add("CRITICAL", ts, "Low GPS Satellites", f"{sats} sats  (critical < {gps_c})")
+                elif sats < gps_w:
+                    add("WARNING",  ts, "Low GPS Satellites", f"{sats} sats  (warning < {gps_w})")
+            except Exception: pass
+
+            try:
+                alt = float(row["altitude_m"])
+                if prev_alt is not None and abs(alt - prev_alt) > alt_j:
+                    add("WARNING", ts, "Sudden Altitude Change",
+                        f"Δ {abs(alt - prev_alt):.1f} m in one log step")
+                prev_alt = alt
+            except Exception: pass
+
+            try:
+                curr = float(row["current_cA"]) / 100
+                if curr > curr_w:
+                    add("WARNING", ts, "High Current Draw", f"{curr:.1f} A  (warning > {curr_w} A)")
+            except Exception: pass
+
+            try:
+                mode = decode_px4_mode(row.get("flight_mode", ""))
+                if mode not in ("--", "") and prev_mode is not None and mode != prev_mode:
+                    add("INFO", ts, "Flight Mode Change", f"{prev_mode}  →  {mode}")
+                if mode not in ("--", ""):
+                    prev_mode = mode
+            except Exception: pass
+
+            try:
+                arm = "ARMED" if (int(float(row.get("arm_status", "0"))) & 128) else "DISARMED"
+                if prev_arm is not None and arm != prev_arm:
+                    add("INFO", ts, "Arm Status Change", f"{prev_arm}  →  {arm}")
+                prev_arm = arm
+            except Exception: pass
+
+        self.anomaly_table.setSortingEnabled(False)
+        self.anomaly_table.setUpdatesEnabled(False)
+        self.anomaly_table.setRowCount(len(anomalies))
+        counts = {"CRITICAL": 0, "WARNING": 0, "INFO": 0}
+        for r, (sev, ts, typ, detail) in enumerate(anomalies):
+            counts[sev] = counts.get(sev, 0) + 1
+            color = SEV_COLORS.get(sev, "#ecf0f1")
+            for c, text in enumerate([sev, ts, typ, detail]):
+                item = QTableWidgetItem(text)
+                item.setForeground(QColor(color))
+                item.setTextAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+                self.anomaly_table.setItem(r, c, item)
+        self.anomaly_table.setUpdatesEnabled(True)
+        self.anomaly_table.setSortingEnabled(True)
+
+        self.badge_crit.setText(f"Critical: {counts['CRITICAL']}")
+        self.badge_warn.setText(f"Warnings: {counts['WARNING']}")
+        self.badge_info.setText(f"Info events: {counts['INFO']}")
 
 
 if __name__ == "__main__":
