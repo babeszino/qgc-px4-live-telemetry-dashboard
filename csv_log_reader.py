@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
 )
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QColor
 
 # PX4 mode decoding
 PX4_MAIN_MODES = {
@@ -99,7 +99,20 @@ def format_cell(col, raw):
 
     return str(raw)
 
-# summary card widget
+class NumericTableWidgetItem(QTableWidgetItem):
+    def __init__(self, display_text, sort_value):
+        super().__init__(display_text)
+        self._sort_value = sort_value
+
+    def __lt__(self, other):
+        if isinstance(other, NumericTableWidgetItem):
+            try:
+                return float(self._sort_value) < float(other._sort_value)
+            except (TypeError, ValueError):
+                pass
+        return super().__lt__(other)
+
+
 class SummaryCard(QGroupBox):
     def __init__(self, title, value, color="#3498db"):
         super().__init__()
@@ -289,20 +302,17 @@ class LogViewer(QMainWindow):
                 raw = row.get(col, "")
                 text = format_cell(col, raw) if col != "timestamp" else raw
  
-                item = QTableWidgetItem(text)
+                try:
+                    sort_val = float(raw)
+                    item = NumericTableWidgetItem(text, sort_val)
+                except (ValueError, TypeError):
+                    item = QTableWidgetItem(text)
+
                 item.setTextAlignment(Qt.AlignCenter)
- 
-                # color arm status cells
+
                 if col == "arm_status":
-                    if text == "ARMED":
-                        item.setForeground(
-                            __import__("PyQt5.QtGui", fromlist=["QColor"]).QColor("#e74c3c")
-                        )
-                    else:
-                        item.setForeground(
-                            __import__("PyQt5.QtGui", fromlist=["QColor"]).QColor("#2ecc71")
-                        )
- 
+                    item.setForeground(QColor("#e74c3c" if text == "ARMED" else "#2ecc71"))
+
                 self.table.setItem(r, c, item)
  
         # fit columns
