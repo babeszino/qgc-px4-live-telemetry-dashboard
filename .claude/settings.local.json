@@ -13,7 +13,10 @@
       "Bash(\"g:/_px4_live_telemetry_dashboard_/qgc-px4-live-telemetry-dashboard/.venv/Scripts/pip.exe\" install:*)",
       "Bash(\"g:/_px4_live_telemetry_dashboard_/qgc-px4-live-telemetry-dashboard/.venv/Scripts/python.exe\" -c \"from flask import Flask; from flask_socketio import SocketIO; from PyQt5.QtWidgets import QApplication; from pymavlink import mavutil; import eventlet; print\\('All imports OK'\\)\")",
       "Bash(python -m venv \"c:\\\\Users\\\\balin\\\\Documents\\\\GitHub\\\\qgc-px4-live-telemetry-dashboard\\\\venv\")",
-      "Bash(\"c:\\\\Users\\\\balin\\\\Documents\\\\GitHub\\\\qgc-px4-live-telemetry-dashboard\\\\venv\\\\Scripts\\\\pip\" install *)"
+      "Bash(\"c:\\\\Users\\\\balin\\\\Documents\\\\GitHub\\\\qgc-px4-live-telemetry-dashboard\\\\venv\\\\Scripts\\\\pip\" install *)",
+      "Bash(c:\\\\Users\\\\balin\\\\Documents\\\\GitHub\\\\qgc-px4-live-telemetry-dashboard\\\\venv\\\\Scripts\\\\pip.exe list *)",
+      "Bash(Select-String -Pattern \"PyQt|pyqt\")",
+      "PowerShell(& \"c:\\\\Users\\\\balin\\\\Documents\\\\GitHub\\\\qgc-px4-live-telemetry-dashboard\\\\venv\\\\Scripts\\\\python.exe\" -c \"from PyQt5.QtGui import QFont; print\\('QFont import OK'\\)\")"
     ]
   }
 }
