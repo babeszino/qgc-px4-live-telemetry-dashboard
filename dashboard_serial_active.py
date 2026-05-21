@@ -896,6 +896,8 @@ class Dashboard(QMainWindow):
             bar.setStyleSheet(vib_style)
 
     def toggle_theme(self):
+        current_size = self.size()
+        self.setFixedSize(current_size)
         self._dark_mode = not self._dark_mode
         style = DARK_STYLE if self._dark_mode else LIGHT_STYLE
 
@@ -955,6 +957,8 @@ class Dashboard(QMainWindow):
         self.mavlink_table.setStyleSheet(mavlink_table_style)
         for card in self.dynamic_cards:
             card.combo.search_box.setStyleSheet(search_box_style)
+        self.setMinimumSize(900, 600)
+        self.setMaximumSize(16777215, 16777215)
 
     def update_mavlink_table(self):
         if not self.raw_telemetry:
