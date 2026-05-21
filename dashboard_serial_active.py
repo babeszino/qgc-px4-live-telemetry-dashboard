@@ -1184,7 +1184,7 @@ class Dashboard(QMainWindow):
             self.sensor_panel.update(present, enabled, health)
 
             outputs = [
-                self.raw_telemetry.get(f"ACTUATOR_OUTPUTS.output[{i}]")
+                self.raw_telemetry.get(f"SERVO_OUTPUT_RAW.servo{i+1}_raw")
                 for i in range(4)
             ]
             self.motor_panel.update(outputs)
