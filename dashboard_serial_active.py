@@ -1020,6 +1020,12 @@ class Dashboard(QMainWindow):
     def disconnect(self):
         self.is_connected = False
         self.is_connecting = False
+        if self.master:
+            try:
+                self.master.close()
+            except Exception:
+                pass
+            self.master = None
         self.heartbeat_timer.stop()
         self.data_timer.stop()
         self.health_timer.stop()
