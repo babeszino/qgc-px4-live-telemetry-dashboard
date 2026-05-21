@@ -1089,6 +1089,8 @@ class Dashboard(QMainWindow):
                     self.statustext_panel.add(msg.severity, msg.text.strip())
                 for key, val in msg.to_dict().items():
                     if key != "mavpackettype":
+                        if msg.get_type() == "HEARTBEAT" and msg.get_srcComponent() != 1:
+                            continue
                         self.raw_telemetry[f"{msg.get_type()}.{key}"] = val
 
             self.refresh_combos()
