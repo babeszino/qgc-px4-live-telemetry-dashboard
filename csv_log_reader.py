@@ -146,7 +146,7 @@ class SummaryCard(QGroupBox):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 8, 12, 8)
         lbl_title = QLabel(title)
-        lbl_title.setStyleSheet("color: #7f8c8d; font-size: 11px;")
+        lbl_title.setStyleSheet("color: #8B7B8C; font-size: 11px;")
         lbl_title.setAlignment(Qt.AlignCenter)
         self.lbl_value = QLabel(value)
         self.lbl_value.setFont(QFont("Consolas", 15, QFont.Bold))
@@ -156,9 +156,9 @@ class SummaryCard(QGroupBox):
         layout.addWidget(self.lbl_value)
         self.setStyleSheet("""
             QGroupBox {
-                border: 2px solid #2c3e50;
+                border: 2px solid #C8A2C9;
                 border-radius: 6px;
-                background-color: #111;
+                background-color: #FEFBCE;
             }
         """)
 
@@ -168,7 +168,7 @@ class SummaryCard(QGroupBox):
 
 class TelemetryCanvas(FigureCanvas):
     def __init__(self):
-        self.fig = Figure(facecolor="#0a0a0a")
+        self.fig = Figure(facecolor="#D6D4AE")
         super().__init__(self.fig)
         self.setMinimumHeight(300)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -178,15 +178,15 @@ class TelemetryCanvas(FigureCanvas):
 
         if not series:
             ax = self.fig.add_subplot(111)
-            ax.set_facecolor("#0d0d0d")
+            ax.set_facecolor("#FFFFFF")
             ax.text(0.5, 0.5,
                     "Select columns on the left and click Plot.",
-                    ha="center", va="center", color="#7f8c8d",
+                    ha="center", va="center", color="#8B7B8C",
                     fontsize=13, transform=ax.transAxes)
             ax.set_xticks([])
             ax.set_yticks([])
             for spine in ax.spines.values():
-                spine.set_edgecolor("#2c3e50")
+                spine.set_edgecolor("#C8A2C9")
             self.draw()
             return
 
@@ -202,18 +202,18 @@ class TelemetryCanvas(FigureCanvas):
         )
 
         for ax, (_, name, unit, values, color) in zip(axes, series):
-            ax.set_facecolor("#0d0d0d")
+            ax.set_facecolor("#FFFFFF")
             xs = [i for i, v in enumerate(values) if v is not None]
             ys = [v for v in values if v is not None]
             if xs:
                 ax.plot(xs, ys, color=color, linewidth=1.4, alpha=0.95)
                 ax.fill_between(xs, ys, alpha=0.08, color=color)
             ylabel = f"{name}" + (f"\n({unit})" if unit else "")
-            ax.set_ylabel(ylabel, color="#95a5a6", fontsize=9, labelpad=4)
-            ax.tick_params(colors="#555", labelsize=8)
+            ax.set_ylabel(ylabel, color="#8B7B8C", fontsize=9, labelpad=4)
+            ax.tick_params(colors="#6B5B6E", labelsize=8)
             for spine in ax.spines.values():
-                spine.set_edgecolor("#2c3e50")
-            ax.grid(True, color="#1a1a1a", linewidth=0.7, linestyle="--")
+                spine.set_edgecolor("#C8A2C9")
+            ax.grid(True, color="#E8D5E9", linewidth=0.7, linestyle="--")
 
         total = len(time_labels)
         if total:
@@ -222,7 +222,7 @@ class TelemetryCanvas(FigureCanvas):
             axes[-1].set_xticks(ticks)
             axes[-1].set_xticklabels(
                 [str(time_labels[i])[-12:] for i in ticks],
-                rotation=25, ha="right", fontsize=8, color="#555"
+                rotation=25, ha="right", fontsize=8, color="#6B5B6E"
             )
 
         self.draw()
@@ -230,49 +230,53 @@ class TelemetryCanvas(FigureCanvas):
 
 STYLE = """
     QMainWindow, QWidget {
-        background-color: #0a0a0a;
-        color: #ecf0f1;
+        background-color: #F5F1B8;
+        color: #2D2D2D;
         font-family: Consolas, Arial;
     }
     QGroupBox {
-        border: 2px solid #2c3e50; border-radius: 6px;
+        border: 2px solid #C8A2C9; border-radius: 6px;
         margin-top: 10px; font-weight: bold;
-        padding: 6px; color: #ecf0f1;
+        padding: 6px; color: #2D2D2D;
     }
     QGroupBox::title { padding: 0 4px; }
     QPushButton {
         padding: 9px 22px; font-weight: bold;
         font-size: 13px; border-radius: 5px; border: none;
     }
-    QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
+    QTabWidget::pane { border: 2px solid #C8A2C9; border-radius: 4px; }
     QTabBar::tab {
-        background: #2c3e50; color: #95a5a6;
+        background: #E8D5E9; color: #8B7B8C;
         padding: 8px 28px; font-size: 13px; font-weight: bold;
     }
     QTabBar::tab:selected {
-        background: #1a1a1a; color: white;
-        border-top: 2px solid #3498db;
+        background: #FEFBCE; color: #2D2D2D;
+        border-top: 2px solid #C8A2C9;
     }
     QTableWidget {
-        background-color: #0d0d0d; color: #ecf0f1;
+        background-color: #FFFFFF; color: #2D2D2D;
         font-family: Consolas, monospace; font-size: 12px;
-        border: 1px solid #2c3e50; gridline-color: #1a1a1a;
+        border: 1px solid #C8A2C9; gridline-color: #E8D5E9;
     }
-    QTableWidget::item:selected { background-color: #2c3e50; }
+    QTableWidget::item:selected { background-color: #C8A2C9; color: #FEFBCE; }
     QHeaderView::section {
-        background-color: #1a2535; color: #ecf0f1;
+        background-color: #E8D5E9; color: #2D2D2D;
         padding: 6px; border: none;
         font-weight: bold; font-size: 12px;
     }
-    QScrollBar:vertical { background: #1a1a1a; width: 10px; border-radius: 5px; }
-    QScrollBar::handle:vertical { background: #2c3e50; border-radius: 5px; }
-    QCheckBox { color: #ecf0f1; font-size: 12px; padding: 3px 0; }
+    QScrollBar:vertical { background: #E8D5E9; width: 10px; border-radius: 5px; }
+    QScrollBar::handle:vertical { background: #C8A2C9; border-radius: 5px; }
+    QCheckBox { color: #2D2D2D; font-size: 12px; padding: 3px 0; }
     QCheckBox::indicator {
         width: 14px; height: 14px;
-        border: 1px solid #3d5166; border-radius: 3px;
-        background-color: #1a1a1a;
+        border: 1px solid #C8A2C9; border-radius: 3px;
+        background-color: #FFFFFF;
     }
-    QCheckBox::indicator:checked { background-color: #3498db; border-color: #3498db; }
+    QCheckBox::indicator:checked { background-color: #C8A2C9; border-color: #C8A2C9; }
+    QLineEdit {
+        background-color: #FFFFFF; color: #2D2D2D;
+        border: 1px solid #C8A2C9; border-radius: 3px; padding: 3px 6px;
+    }
 """
 
 
@@ -297,9 +301,9 @@ class LogViewer(QMainWindow):
 
         top = QHBoxLayout()
         self.lbl_file = QLabel("No file loaded")
-        self.lbl_file.setStyleSheet("color: #7f8c8d; font-size: 13px;")
+        self.lbl_file.setStyleSheet("color: #8B7B8C; font-size: 13px;")
         self.btn_load = QPushButton("Load Log File")
-        self.btn_load.setStyleSheet("background-color: #2980b9; color: white;")
+        self.btn_load.setStyleSheet("background-color: #A67DA8; color: #FEFBCE;")
         self.btn_load.setFixedWidth(180)
         self.btn_load.clicked.connect(self.load_file)
         top.addWidget(self.lbl_file)
@@ -314,7 +318,7 @@ class LogViewer(QMainWindow):
         self.main_tabs.addTab(self._build_anomaly_tab(), "Anomalies")
 
         self.lbl_status = QLabel("Load a log file to get started.")
-        self.lbl_status.setStyleSheet("color: #7f8c8d; font-size: 12px;")
+        self.lbl_status.setStyleSheet("color: #8B7B8C; font-size: 12px;")
         main.addWidget(self.lbl_status)
 
     def _build_summary_tab(self):
@@ -327,7 +331,7 @@ class LogViewer(QMainWindow):
         sl = QHBoxLayout(summary_box)
         sl.setSpacing(10)
         self.cards = {
-            "date":     SummaryCard("Date",         "--", "#ecf0f1"),
+            "date":     SummaryCard("Date",         "--", "#6915df"),
             "duration": SummaryCard("Duration",     "--", "#9b59b6"),
             "rows":     SummaryCard("Log Rows",     "--", "#3498db"),
             "max_alt":  SummaryCard("Max Altitude", "--", "#1abc9c"),
@@ -347,7 +351,7 @@ class LogViewer(QMainWindow):
         self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet(
-            "QTableWidget { alternate-background-color: #0f0f0f; }"
+            "QTableWidget { alternate-background-color: #F5EAF6; }"
         )
         lay.addWidget(self.table)
         return w
@@ -367,7 +371,7 @@ class LogViewer(QMainWindow):
         for label, slot in [("All", self._check_all), ("None", self._check_none)]:
             b = QPushButton(label)
             b.setStyleSheet(
-                "background-color: #2c3e50; color: white; "
+                "background-color: #E8D5E9; color: #2D2D2D; "
                 "padding: 4px 10px; font-size: 11px;"
             )
             b.clicked.connect(slot)
@@ -376,8 +380,7 @@ class LogViewer(QMainWindow):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color: #2c3e50;")
-        sb_lay.addWidget(sep)
+        sep.setStyleSheet("color: #C8A2C9;")
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -391,7 +394,7 @@ class LogViewer(QMainWindow):
         sb_lay.addWidget(scroll)
 
         self.btn_plot = QPushButton("PLOT")
-        self.btn_plot.setStyleSheet("background-color: #27ae60; color: white;")
+        self.btn_plot.setStyleSheet("background-color: #A67DA8; color: #FEFBCE;")
         self.btn_plot.clicked.connect(self._do_plot)
         sb_lay.addWidget(self.btn_plot)
 
@@ -403,7 +406,7 @@ class LogViewer(QMainWindow):
         rl.setSpacing(4)
         self.canvas = TelemetryCanvas()
         self.toolbar = NavigationToolbar(self.canvas, right)
-        self.toolbar.setStyleSheet("background-color: #111; color: #ecf0f1;")
+        self.toolbar.setStyleSheet("background-color: #E8D5E9; color: #2D2D2D;")
         rl.addWidget(self.toolbar)
         rl.addWidget(self.canvas)
         lay.addWidget(right)
@@ -429,7 +432,7 @@ class LogViewer(QMainWindow):
         filename = path.replace("\\", "/").split("/")[-1]
         self.lbl_file.setText(f"  {filename}")
         self.lbl_file.setStyleSheet(
-            "color: #2ecc71; font-size: 13px; font-weight: bold;"
+            "color: #A67DA8; font-size: 13px; font-weight: bold;"
         )
         self._populate_table()
         self._populate_summary()
@@ -567,13 +570,13 @@ class LogViewer(QMainWindow):
         def thresh_row(label, default):
             row = QHBoxLayout()
             lbl = QLabel(label)
-            lbl.setStyleSheet("color: #95a5a6; font-size: 11px;")
+            lbl.setStyleSheet("color: #8B7B8C; font-size: 11px;")
             lbl.setFixedWidth(140)
             inp = QLineEdit(default)
             inp.setFixedWidth(55)
             inp.setStyleSheet(
-                "background:#1a1a1a; color:#ecf0f1; "
-                "padding:3px; border:1px solid #3d5166; border-radius:3px;"
+                "background:#FFFFFF; color:#2D2D2D; "
+                "padding:3px; border:1px solid #C8A2C9; border-radius:3px;"
             )
             row.addWidget(lbl)
             row.addWidget(inp)
@@ -604,7 +607,7 @@ class LogViewer(QMainWindow):
 
         sb.addStretch()
         btn_detect = QPushButton("Run detection")
-        btn_detect.setStyleSheet("background-color: #2980b9; color: white;")
+        btn_detect.setStyleSheet("background-color: #A67DA8; color: #FEFBCE;")
         btn_detect.clicked.connect(self._run_anomaly_detection)
         sb.addWidget(btn_detect)
         lay.addWidget(sidebar)
@@ -639,7 +642,7 @@ class LogViewer(QMainWindow):
         self.anomaly_table.setSortingEnabled(True)
         self.anomaly_table.setAlternatingRowColors(True)
         self.anomaly_table.setStyleSheet(
-            "QTableWidget { alternate-background-color: #0f0f0f; }"
+            "QTableWidget { alternate-background-color: #F5EAF6; }"
         )
         rl.addWidget(self.anomaly_table)
         lay.addWidget(right)
@@ -648,13 +651,13 @@ class LogViewer(QMainWindow):
     def _sep(self):
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color: #2c3e50; margin: 2px 0;")
+        sep.setStyleSheet("color: #C8A2C9; margin: 2px 0;")
         return sep
 
     def _badge(self, text, color):
         lbl = QLabel(text)
         lbl.setStyleSheet(f"""
-            background-color: #111; border: 2px solid {color};
+            background-color: #FEFBCE; border: 2px solid {color};
             border-radius: 6px; color: {color};
             font-weight: bold; font-size: 13px; padding: 6px 16px;
         """)
