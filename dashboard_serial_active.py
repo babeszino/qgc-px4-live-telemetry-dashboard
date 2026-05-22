@@ -660,7 +660,7 @@ class MissionCard(QGroupBox):
 class Dashboard(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PX4 Telemetry Dashboard")
+        self.setWindowTitle("px4-qgc-dashboard")
         self.resize(1200, 520)
         self._dark_mode = False
         self.setStyleSheet(LIGHT_STYLE)

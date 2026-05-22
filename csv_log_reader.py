@@ -84,6 +84,17 @@ PLOT_COLORS = [
     "#00bcd4", "#8bc34a", "#ff5722", "#607d8b",
 ]
 
+FLIGHT_COLORS = [
+    "#A67DA8",  # dark lilac
+    "#3498db",  # blue
+    "#e74c3c",  # red
+    "#2ecc71",  # green
+    "#e67e22",  # orange
+    "#9b59b6",  # purple
+    "#1abc9c",  # teal
+    "#e91e63",  # pink
+]
+
 DEFAULT_PLOT_COLS = ["altitude_m", "groundspeed_ms", "voltage_mV"]
 
 
@@ -234,13 +245,18 @@ class CompareCanvas(FigureCanvas):
         self.setMinimumHeight(300)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-    def plot(self, series_a, series_b, name_a, name_b):
+    def plot(self, flights):
+        """
+        flights: list of {name, color, series}
+        series:  list of (col, display_name, unit, xs, ys)
+        """
         self.fig.clear()
 
-        if not series_a and not series_b:
+        if not flights:
             ax = self.fig.add_subplot(111)
             ax.set_facecolor("#FFFFFF")
-            ax.text(0.5, 0.5, "Load two files, select columns and click Plot.",
+            ax.text(0.5, 0.5,
+                    "Load flight files, select columns and click Compare.",
                     ha="center", va="center", color="#8B7B8C",
                     fontsize=13, transform=ax.transAxes)
             ax.set_xticks([])
@@ -250,9 +266,12 @@ class CompareCanvas(FigureCanvas):
             self.draw()
             return
 
-        cols_a = {s[0]: s for s in series_a}
-        cols_b = {s[0]: s for s in series_b}
-        all_cols = list(dict.fromkeys(list(cols_a.keys()) + list(cols_b.keys())))
+        all_cols = list(dict.fromkeys(
+            col for f in flights for col, *_ in f["series"]
+        ))
+        if not all_cols:
+            self.draw()
+            return
 
         n = len(all_cols)
         axes = self.fig.subplots(n, 1, sharex=True)
@@ -260,32 +279,25 @@ class CompareCanvas(FigureCanvas):
             axes = [axes]
 
         self.fig.subplots_adjust(
-            left=0.09, right=0.97,
-            top=0.97,  bottom=0.09,
-            hspace=0.15
+            left=0.09, right=0.97, top=0.97, bottom=0.09, hspace=0.15
         )
+
+        line_styles = ["-", "--", "-.", ":", "-", "--", "-.", ":"]
 
         for ax, col in zip(axes, all_cols):
             ax.set_facecolor("#FFFFFF")
-            plotted = []
+            display_name = unit = ""
+            for fi, flight in enumerate(flights):
+                match = next((s for s in flight["series"] if s[0] == col), None)
+                if match is None:
+                    continue
+                _, display_name, unit, xs, ys = match
+                ls = line_styles[fi % len(line_styles)]
+                ax.plot(xs, ys, color=flight["color"], linewidth=1.5,
+                        linestyle=ls, alpha=0.9, label=flight["name"])
+                ax.fill_between(xs, ys, alpha=0.06, color=flight["color"])
 
-            if col in cols_a:
-                _, name, unit, xs, ys, color = cols_a[col]
-                ax.plot(xs, ys, color=color, linewidth=1.5,
-                        linestyle="-", alpha=0.9, label=name_a)
-                ax.fill_between(xs, ys, alpha=0.07, color=color)
-                plotted.append((name, unit))
-
-            if col in cols_b:
-                _, name, unit, xs, ys, color = cols_b[col]
-                ax.plot(xs, ys, color=color, linewidth=1.5,
-                        linestyle="--", alpha=0.9, label=name_b)
-                ax.fill_between(xs, ys, alpha=0.07, color=color)
-                if not plotted:
-                    plotted.append((name, unit))
-
-            name_str, unit_str = plotted[0]
-            ylabel = name_str + (f"\n({unit_str})" if unit_str else "")
+            ylabel = display_name + (f"\n({unit})" if unit else "")
             ax.set_ylabel(ylabel, color="#8B7B8C", fontsize=9, labelpad=4)
             ax.tick_params(colors="#6B5B6E", labelsize=8)
             for spine in ax.spines.values():
@@ -354,17 +366,15 @@ STYLE = """
 class LogViewer(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("PX4 Flight Log Viewer")
+        self.setWindowTitle("px4-dash-csv-log-reader")
         self.setMinimumSize(1100, 650)
         self.resize(1350, 780)
         self.setStyleSheet(STYLE)
         self._rows              = []
         self._columns           = []
         self._checkboxes        = {}
-        self._compare_rows_a    = []
-        self._compare_rows_b    = []
-        self._compare_name_a    = "Flight A"
-        self._compare_name_b    = "Flight B"
+        self._compare_flights   = [{"rows": [], "name": None},
+                                    {"rows": [], "name": None}]
         self._compare_cbs       = {}
         self._setup_ui()
 
@@ -848,50 +858,51 @@ class LogViewer(QMainWindow):
         lay.setContentsMargins(10, 10, 10, 10)
         lay.setSpacing(10)
 
-        sidebar = QGroupBox("Comparison Setup")
-        sidebar.setFixedWidth(230)
+        sidebar = QGroupBox("Flights to Compare")
+        sidebar.setFixedWidth(240)
         sb = QVBoxLayout(sidebar)
-        sb.setSpacing(8)
+        sb.setSpacing(6)
 
-        sb.addWidget(self._compare_section_label("Flight A"))
-        self.lbl_compare_a = QLabel("No file loaded")
-        self.lbl_compare_a.setStyleSheet("color: #8B7B8C; font-size: 11px;")
-        self.lbl_compare_a.setWordWrap(True)
-        btn_a = QPushButton("Load log_1")
-        btn_a.setStyleSheet("background-color: #C8A2C9; color: #FEFBCE;")
-        btn_a.clicked.connect(lambda: self._load_compare_file("a"))
-        sb.addWidget(btn_a)
-        sb.addWidget(self.lbl_compare_a)
+        self.slots_scroll = QScrollArea()
+        self.slots_scroll.setWidgetResizable(True)
+        self.slots_scroll.setStyleSheet(
+            "QScrollArea { border: none; background: transparent; }"
+        )
+        self.slots_scroll.setMaximumHeight(260)
+        slots_container = QWidget()
+        self.slots_layout = QVBoxLayout(slots_container)
+        self.slots_layout.setSpacing(4)
+        self.slots_layout.setContentsMargins(0, 0, 0, 0)
+        self.slots_layout.addStretch()
+        self.slots_scroll.setWidget(slots_container)
+        sb.addWidget(self.slots_scroll)
+
+        btn_add = QPushButton("＋  Add Flight")
+        btn_add.setStyleSheet(
+            "background-color: #E8D5E9; color: #2D2D2D; "
+            "padding: 5px; font-size: 12px;"
+        )
+        btn_add.clicked.connect(self._add_compare_slot)
+        sb.addWidget(btn_add)
 
         sb.addWidget(self._sep())
 
-        sb.addWidget(self._compare_section_label("Flight B"))
-        self.lbl_compare_b = QLabel("No file loaded")
-        self.lbl_compare_b.setStyleSheet("color: #8B7B8C; font-size: 11px;")
-        self.lbl_compare_b.setWordWrap(True)
-        btn_b = QPushButton("Load log_2")
-        btn_b.setStyleSheet("background-color: #C8A2C9; color: #FEFBCE;")
-        btn_b.clicked.connect(lambda: self._load_compare_file("b"))
-        sb.addWidget(btn_b)
-        sb.addWidget(self.lbl_compare_b)
-
-        sb.addWidget(self._sep())
-
-        self.cb_align = QCheckBox("Align both to t = 0")
+        self.cb_align = QCheckBox("Align logs to t = 0")
         self.cb_align.setChecked(True)
         sb.addWidget(self.cb_align)
 
         sb.addWidget(self._sep())
 
         sb.addWidget(self._compare_section_label("Columns"))
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll2 = QScrollArea()
+        scroll2.setWidgetResizable(True)
+        scroll2.setStyleSheet(
+            "QScrollArea { border: none; background: transparent; }"
+        )
         cb_container = QWidget()
         self.compare_cb_layout = QVBoxLayout(cb_container)
         self.compare_cb_layout.setSpacing(2)
         self.compare_cb_layout.setContentsMargins(2, 2, 2, 2)
-
         for i, (col, (name, unit)) in enumerate(PLOTTABLE_COLUMNS.items()):
             label = f"{name}" + (f"  ({unit})" if unit else "")
             color = PLOT_COLORS[i % len(PLOT_COLORS)]
@@ -900,12 +911,11 @@ class LogViewer(QMainWindow):
             cb.setStyleSheet(f"QCheckBox {{ color: {color}; }}")
             self._compare_cbs[col] = cb
             self.compare_cb_layout.addWidget(cb)
-
         self.compare_cb_layout.addStretch()
-        scroll.setWidget(cb_container)
-        sb.addWidget(scroll)
+        scroll2.setWidget(cb_container)
+        sb.addWidget(scroll2)
 
-        btn_plot = QPushButton("COMPARE LOGS")
+        btn_plot = QPushButton("▶  Compare")
         btn_plot.setStyleSheet("background-color: #A67DA8; color: #FEFBCE;")
         btn_plot.clicked.connect(self._do_compare_plot)
         sb.addWidget(btn_plot)
@@ -918,20 +928,85 @@ class LogViewer(QMainWindow):
         rl.setSpacing(4)
         self.compare_canvas = CompareCanvas()
         compare_toolbar = NavigationToolbar(self.compare_canvas, right)
-        compare_toolbar.setStyleSheet("background-color: #E8D5E9; color: #2D2D2D;")
+        compare_toolbar.setStyleSheet(
+            "background-color: #E8D5E9; color: #2D2D2D;"
+        )
         rl.addWidget(compare_toolbar)
         rl.addWidget(self.compare_canvas)
         lay.addWidget(right)
 
-        self.compare_canvas.plot([], [], "", "")
+        self._refresh_slots_ui()
+        self.compare_canvas.plot([])
         return w
 
     def _compare_section_label(self, text):
         lbl = QLabel(text)
-        lbl.setStyleSheet("color: #2D2D2D; font-weight: bold; font-size: 12px;")
+        lbl.setStyleSheet(
+            "color: #2D2D2D; font-weight: bold; font-size: 12px;"
+        )
         return lbl
 
-    def _load_compare_file(self, which):
+    def _refresh_slots_ui(self):
+        while self.slots_layout.count() > 1:
+            item = self.slots_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        for i, flight in enumerate(self._compare_flights):
+            color = FLIGHT_COLORS[i % len(FLIGHT_COLORS)]
+            slot = QWidget()
+            row = QHBoxLayout(slot)
+            row.setContentsMargins(0, 2, 0, 2)
+            row.setSpacing(4)
+
+            dot = QLabel("⬤")
+            dot.setStyleSheet(f"color: {color}; font-size: 14px;")
+            dot.setFixedWidth(18)
+
+            if flight["name"]:
+                btn_load = QPushButton(flight["name"])
+                btn_load.setStyleSheet(
+                    f"background-color: {color}; color: #FEFBCE; "
+                    f"padding: 4px 6px; font-size: 10px; text-align: left;"
+                )
+            else:
+                btn_load = QPushButton(f"Flight {i + 1}: Load file")
+                btn_load.setStyleSheet(
+                    f"background-color: #E8D5E9; color: #2D2D2D; "
+                    f"padding: 4px 6px; font-size: 10px;"
+                )
+            btn_load.clicked.connect(
+                lambda _, idx=i: self._load_compare_slot(idx)
+            )
+
+            btn_x = QPushButton("×")
+            btn_x.setFixedSize(22, 22)
+            btn_x.setStyleSheet(
+                "background-color: #E8D5E9; color: #8B7B8C; "
+                "padding: 0; font-size: 14px; font-weight: bold;"
+            )
+            btn_x.clicked.connect(
+                lambda _, idx=i: self._remove_compare_slot(idx)
+            )
+
+            row.addWidget(dot)
+            row.addWidget(btn_load, stretch=1)
+            row.addWidget(btn_x)
+            self.slots_layout.insertWidget(
+                self.slots_layout.count() - 1, slot
+            )
+
+    def _add_compare_slot(self):
+        self._compare_flights.append({"rows": [], "name": None})
+        self._refresh_slots_ui()
+
+    def _remove_compare_slot(self, index):
+        if len(self._compare_flights) <= 1:
+            return
+        self._compare_flights.pop(index)
+        self._refresh_slots_ui()
+
+    def _load_compare_slot(self, index):
         path, _ = QFileDialog.getOpenFileName(
             self, "Open Flight Log", "", "CSV Files (*.csv);;All Files (*)"
         )
@@ -939,82 +1014,71 @@ class LogViewer(QMainWindow):
             return
         try:
             with open(path, newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                rows = list(reader)
+                rows = list(csv.DictReader(f))
         except Exception as e:
-            self.lbl_status.setText(f"Error loading file: {e}")
+            self.lbl_status.setText(f"Error: {e}")
             return
-
         filename = path.replace("\\", "/").split("/")[-1]
-        if which == "a":
-            self._compare_rows_a = rows
-            self._compare_name_a = filename
-            self.lbl_compare_a.setText(filename)
-            self.lbl_compare_a.setStyleSheet(
-                "color: #A67DA8; font-size: 11px; font-weight: bold;"
-            )
-        else:
-            self._compare_rows_b = rows
-            self._compare_name_b = filename
-            self.lbl_compare_b.setText(filename)
-            self.lbl_compare_b.setStyleSheet(
-                "color: #A67DA8; font-size: 11px; font-weight: bold;"
-            )
-        self.lbl_status.setText(f"Loaded {filename} as Flight {which.upper()}")
+        self._compare_flights[index]["rows"] = rows
+        self._compare_flights[index]["name"] = filename
+        self._refresh_slots_ui()
+        self.lbl_status.setText(
+            f"Loaded {filename} as Flight {index + 1}"
+        )
 
     def _do_compare_plot(self):
         selected = [col for col, cb in self._compare_cbs.items()
                     if cb.isChecked()]
         if not selected:
             return
-        if not self._compare_rows_a and not self._compare_rows_b:
-            self.lbl_status.setText("Load at least one file to compare.")
-            return
 
         align = self.cb_align.isChecked()
+
+        def parse_ts(s):
+            for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+                try: return datetime.strptime(s, fmt)
+                except: pass
+            return None
 
         def build_series(rows, selected):
             if not rows:
                 return []
-
-            def parse_ts(s):
-                for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
-                    try: return datetime.strptime(s, fmt)
-                    except: pass
-                return None
-
             timestamps = [parse_ts(r.get("timestamp", "")) for r in rows]
             t0 = next((t for t in timestamps if t), None)
-
-            if align and t0:
-                xs_all = [
-                    (t - t0).total_seconds() if t else None
-                    for t in timestamps
-                ]
-            else:
-                xs_all = list(range(len(rows)))
-
+            xs_base = [
+                (t - t0).total_seconds() if (align and t0 and t) else j
+                for j, t in enumerate(timestamps)
+            ]
             series = []
-            for i, col in enumerate(selected):
-                color = PLOT_COLORS[i % len(PLOT_COLORS)]
+            for col in selected:
                 name, unit = PLOTTABLE_COLUMNS[col]
                 xs, ys = [], []
                 for j, row in enumerate(rows):
                     v = to_plot_value(col, row.get(col, ""))
-                    x = xs_all[j]
-                    if v is not None and x is not None:
-                        xs.append(x)
+                    if v is not None:
+                        xs.append(xs_base[j])
                         ys.append(v)
-                series.append((col, name, unit, xs, ys, color))
+                if xs:
+                    series.append((col, name, unit, xs, ys))
             return series
 
-        series_a = build_series(self._compare_rows_a, selected)
-        series_b = build_series(self._compare_rows_b, selected)
+        flights_data = []
+        for i, flight in enumerate(self._compare_flights):
+            if not flight["rows"]:
+                continue
+            series = build_series(flight["rows"], selected)
+            if series:
+                flights_data.append({
+                    "name":   flight["name"],
+                    "color":  FLIGHT_COLORS[i % len(FLIGHT_COLORS)],
+                    "series": series,
+                })
 
-        self.compare_canvas.plot(
-            series_a, series_b,
-            self._compare_name_a, self._compare_name_b
-        )
+        if not flights_data:
+            self.lbl_status.setText("No loaded flights to compare.")
+            return
+
+        self.compare_canvas.plot(flights_data)
         self.main_tabs.setCurrentIndex(3)
 
 
