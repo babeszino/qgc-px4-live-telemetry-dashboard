@@ -169,7 +169,7 @@ class SummaryCard(QGroupBox):
             QGroupBox {
                 border: 2px solid #C8A2C9;
                 border-radius: 6px;
-                background-color: #FEFBCE;
+                background-color: #FDF9FF;
             }
         """)
 
@@ -179,7 +179,7 @@ class SummaryCard(QGroupBox):
 
 class TelemetryCanvas(FigureCanvas):
     def __init__(self):
-        self.fig = Figure(facecolor="#FEFBCE")
+        self.fig = Figure(facecolor="#FDF9FF")
         super().__init__(self.fig)
         self.setMinimumHeight(300)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -240,7 +240,7 @@ class TelemetryCanvas(FigureCanvas):
 
 class CompareCanvas(FigureCanvas):
     def __init__(self):
-        self.fig = Figure(facecolor="#FEFBCE")
+        self.fig = Figure(facecolor="#FDF9FF")
         super().__init__(self.fig)
         self.setMinimumHeight(300)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -303,7 +303,7 @@ class CompareCanvas(FigureCanvas):
             for spine in ax.spines.values():
                 spine.set_edgecolor("#C8A2C9")
             ax.grid(True, color="#E8D5E9", linewidth=0.7, linestyle="--")
-            ax.legend(fontsize=8, facecolor="#FEFBCE",
+            ax.legend(fontsize=8, facecolor="#FDF9FF",
                       edgecolor="#C8A2C9", labelcolor="#2D2D2D",
                       loc="upper right")
 
@@ -313,7 +313,7 @@ class CompareCanvas(FigureCanvas):
 
 STYLE = """
     QMainWindow, QWidget {
-        background-color: #F5F1B8;
+        background-color: #F8F4FF;
         color: #2D2D2D;
         font-family: Consolas, Arial;
     }
@@ -333,7 +333,7 @@ STYLE = """
         padding: 8px 28px; font-size: 13px; font-weight: bold;
     }
     QTabBar::tab:selected {
-        background: #FEFBCE; color: #2D2D2D;
+        background: #FDF9FF; color: #2D2D2D;
         border-top: 2px solid #C8A2C9;
     }
     QTableWidget {
@@ -341,7 +341,7 @@ STYLE = """
         font-family: Consolas, monospace; font-size: 12px;
         border: 1px solid #C8A2C9; gridline-color: #E8D5E9;
     }
-    QTableWidget::item:selected { background-color: #C8A2C9; color: #FEFBCE; }
+    QTableWidget::item:selected { background-color: #C8A2C9; color: #FDF9FF; }
     QHeaderView::section {
         background-color: #E8D5E9; color: #2D2D2D;
         padding: 6px; border: none;
@@ -389,7 +389,7 @@ class LogViewer(QMainWindow):
         self.lbl_file = QLabel("No file loaded")
         self.lbl_file.setStyleSheet("color: #8B7B8C; font-size: 13px;")
         self.btn_load = QPushButton("Load Log File")
-        self.btn_load.setStyleSheet("background-color: #A67DA8; color: #FEFBCE;")
+        self.btn_load.setStyleSheet("background-color: #A67DA8; color: #FDF9FF;")
         self.btn_load.setFixedWidth(180)
         self.btn_load.clicked.connect(self.load_file)
         top.addWidget(self.lbl_file)
@@ -481,7 +481,7 @@ class LogViewer(QMainWindow):
         sb_lay.addWidget(scroll)
 
         self.btn_plot = QPushButton("PLOT")
-        self.btn_plot.setStyleSheet("background-color: #A67DA8; color: #FEFBCE;")
+        self.btn_plot.setStyleSheet("background-color: #A67DA8; color: #FDF9FF;")
         self.btn_plot.clicked.connect(self._do_plot)
         sb_lay.addWidget(self.btn_plot)
 
@@ -694,7 +694,7 @@ class LogViewer(QMainWindow):
 
         sb.addStretch()
         btn_detect = QPushButton("Run detection")
-        btn_detect.setStyleSheet("background-color: #A67DA8; color: #FEFBCE;")
+        btn_detect.setStyleSheet("background-color: #A67DA8; color: #FDF9FF;")
         btn_detect.clicked.connect(self._run_anomaly_detection)
         sb.addWidget(btn_detect)
         lay.addWidget(sidebar)
@@ -744,7 +744,7 @@ class LogViewer(QMainWindow):
     def _badge(self, text, color):
         lbl = QLabel(text)
         lbl.setStyleSheet(f"""
-            background-color: #FEFBCE; border: 2px solid {color};
+            background-color: #FDF9FF; border: 2px solid {color};
             border-radius: 6px; color: {color};
             font-weight: bold; font-size: 13px; padding: 6px 16px;
         """)
@@ -916,7 +916,7 @@ class LogViewer(QMainWindow):
         sb.addWidget(scroll2)
 
         btn_plot = QPushButton("▶  Compare")
-        btn_plot.setStyleSheet("background-color: #A67DA8; color: #FEFBCE;")
+        btn_plot.setStyleSheet("background-color: #A67DA8; color: #FDF9FF;")
         btn_plot.clicked.connect(self._do_compare_plot)
         sb.addWidget(btn_plot)
 
@@ -966,7 +966,7 @@ class LogViewer(QMainWindow):
             if flight["name"]:
                 btn_load = QPushButton(flight["name"])
                 btn_load.setStyleSheet(
-                    f"background-color: {color}; color: #FEFBCE; "
+                    f"background-color: {color}; color: #FDF9FF; "
                     f"padding: 4px 6px; font-size: 10px; text-align: left;"
                 )
             else:
