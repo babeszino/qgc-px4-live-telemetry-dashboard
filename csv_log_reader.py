@@ -859,7 +859,7 @@ class LogViewer(QMainWindow):
         lay.setSpacing(10)
 
         sidebar = QGroupBox("Flights to Compare")
-        sidebar.setFixedWidth(240)
+        sidebar.setFixedWidth(280)
         sb = QVBoxLayout(sidebar)
         sb.setSpacing(6)
 
