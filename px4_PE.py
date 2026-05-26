@@ -1,5 +1,6 @@
 import sys
 import time
+import math
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -271,26 +272,19 @@ class ParameterEditor(QMainWindow):
                 self.master = mavutil.mavlink_connection(port, baud=baud)
             else:
                 self.master = mavutil.mavlink_connection(
-                    f"udpout:127.0.0.1:{port}"
+                    f"udpin:0.0.0.0:{port}"
                 )
-        
+
         except Exception as e:
             self.lbl_conn.setText(f"Error: {e}")
             self.lbl_conn.setStyleSheet("color: #e74c3c; font-size: 12px;")
             return
-        
+
         self.is_connected = True
         self.btn_connect.setText("Disconnect")
         self.btn_connect.setStyleSheet("background-color: #e74c3c; color: white;")
         self.lbl_conn.setText("Waiting for heartbeat…")
         self.lbl_conn.setStyleSheet("color: #f39c12; font-size: 12px;")
-
-        # priming the socket on Windows (because udpout cant receive intul at least one packet is sent)
-        self.master.mav.heartbeat_send(
-            mavutil.mavlink.MAV_TYPE_GCS,
-            mavutil.mavlink.MAV_AUTOPILOT_INVALID,
-            0, 0, 0
-        )
 
         self._waiting_heartbeat  = True
         self._heartbeat_deadline = time.time() + 10
@@ -472,7 +466,12 @@ class ParameterEditor(QMainWindow):
         for r, name in enumerate(names):
             p = self.params[name]
             is_float  = (p["ptype"] == 9)
-            val_str   = f"{p['value']:.6g}" if is_float else str(int(p["value"]))
+            if math.isnan(p["value"]):
+                val_str = "NaN"
+            elif is_float:
+                val_str = f"{p['value']:.6g}"
+            else:
+                val_str = str(int(p["value"]))
             type_str  = MAV_PARAM_TYPES.get(p["ptype"], str(p["ptype"]))
             group_str = name.split("_")[0]
 
