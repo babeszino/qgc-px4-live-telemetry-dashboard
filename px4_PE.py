@@ -433,8 +433,8 @@ class ParameterEditor(QMainWindow):
         self.lbl_conn.setText(f"{n} params loaded")
         self.lbl_conn.setStyleSheet("color: #2ecc71; font-size: 12px;")
         self.lbl_status.setText(
-            f"{n} params loaded.  "
-            "double click values to edit  "
+            f"{n} params loaded | "
+            "double click values to edit | "
             "click 'Write Changed' to send edits to vehicle"
         )
 
@@ -509,7 +509,7 @@ class ParameterEditor(QMainWindow):
             new_val = float(item.text()) if p["ptype"] == 9 \
                       else float(int(item.text()))
         except ValueError:
-            # restore original display
+            # restoring original display
             self.table.itemChanged.disconnect(self._on_item_changed)
             item.setText(
                 f"{p['value']:.6g}" if p["ptype"] == 9
@@ -538,7 +538,7 @@ class ParameterEditor(QMainWindow):
     # writing
     def _write_all_changed(self):
         if not self.is_connected or not self.master:
-            QMessageBox.warning(self, "Not connected", "Connect to a vehicle first !")
+            QMessageBox.warning(self, "Not connected", "Connect to a vehicle first!")
             return
  
         changed = {n: p for n, p in self.params.items() if p["changed"]}
@@ -600,7 +600,7 @@ class ParameterEditor(QMainWindow):
     # EXPORT / INPORT
     def export_params(self):
         if not self.params:
-            QMessageBox.information(self, "No parameters", "Load parameters first !")
+            QMessageBox.information(self, "No parameters", "Load parameters first!")
             return
         path, _ = QFileDialog.getSaveFileName(
             self, "Export Parameters", "px4_params.params",
@@ -624,7 +624,7 @@ class ParameterEditor(QMainWindow):
 
     def import_params(self):
         if not self.is_connected:
-            QMessageBox.warning(self, "Not connected", "Connect to a vehicle before importing !")
+            QMessageBox.warning(self, "Not connected", "Connect to a vehicle before importing!")
             return
         if not self.params:
             QMessageBox.warning(self, "No parameters", "Load parameters from the vehicle first")
@@ -669,7 +669,7 @@ class ParameterEditor(QMainWindow):
         self._update_write_btn()
         self.lbl_status.setText(
             f"Imported {applied} / {len(to_import)} parameters from file."
-            "Review the highlighted changes before clicking 'Write Changed' !"
+            "Review the highlighted changes before clicking 'Write Changed'!"
         )
 
 if __name__ == "__main__":
