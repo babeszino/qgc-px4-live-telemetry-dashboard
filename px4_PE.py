@@ -130,7 +130,7 @@ class ParameterEditor(QMainWindow):
 
         self.lbl_port = QLabel("Port:")
         self.lbl_port.setStyleSheet("color: #95a5a6;")
-        self.input_port = QLineEdit("14550")
+        self.input_port = QLineEdit("14030")
         self.input_port.setFixedWidth(90)
 
         self.lbl_baud = QLabel("Baud:")
@@ -559,8 +559,17 @@ class ParameterEditor(QMainWindow):
         )
         if reply != QMessageBox.Yes:
             return
- 
-        # send PARAM_SET for each
+
+        # flush needed before sending so the confirmation loop
+        # so the confirmation loop only sees responses to our PARAM_SET
+        while True:
+            try:
+                stale = self.master.recv_match(blocking=False)
+                if not stale:
+                    break
+            except Exception:
+                break
+
         for name, p in changed.items():
             self.master.mav.param_set_send(
                 self.master.target_system,
