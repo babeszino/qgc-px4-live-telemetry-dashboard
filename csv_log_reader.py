@@ -157,10 +157,10 @@ class SummaryCard(QGroupBox):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 8, 12, 8)
         lbl_title = QLabel(title)
-        lbl_title.setStyleSheet("color: #8B7B8C; font-size: 11px;")
+        lbl_title.setStyleSheet("color: #8B7B8C; font-size: 13px;")
         lbl_title.setAlignment(Qt.AlignCenter)
         self.lbl_value = QLabel(value)
-        self.lbl_value.setFont(QFont("Consolas", 15, QFont.Bold))
+        self.lbl_value.setFont(QFont("Consolas", 17, QFont.Bold))
         self.lbl_value.setStyleSheet(f"color: {color};")
         self.lbl_value.setAlignment(Qt.AlignCenter)
         layout.addWidget(lbl_title)
@@ -325,12 +325,12 @@ STYLE = """
     QGroupBox::title { padding: 0 4px; }
     QPushButton {
         padding: 9px 22px; font-weight: bold;
-        font-size: 13px; border-radius: 5px; border: none;
+        font-size: 15px; border-radius: 5px; border: none;
     }
     QTabWidget::pane { border: 2px solid #C8A2C9; border-radius: 4px; }
     QTabBar::tab {
         background: #E8D5E9; color: #8B7B8C;
-        padding: 8px 28px; font-size: 13px; font-weight: bold;
+        padding: 10px 32px; font-size: 15px; font-weight: bold; min-width: 160px;
     }
     QTabBar::tab:selected {
         background: #FDF9FF; color: #2D2D2D;
@@ -338,18 +338,18 @@ STYLE = """
     }
     QTableWidget {
         background-color: #FFFFFF; color: #2D2D2D;
-        font-family: Consolas, monospace; font-size: 12px;
+        font-family: Consolas, monospace; font-size: 14px;
         border: 1px solid #C8A2C9; gridline-color: #E8D5E9;
     }
     QTableWidget::item:selected { background-color: #C8A2C9; color: #FDF9FF; }
     QHeaderView::section {
         background-color: #E8D5E9; color: #2D2D2D;
         padding: 6px; border: none;
-        font-weight: bold; font-size: 12px;
+        font-weight: bold; font-size: 14px;
     }
     QScrollBar:vertical { background: #E8D5E9; width: 10px; border-radius: 5px; }
     QScrollBar::handle:vertical { background: #C8A2C9; border-radius: 5px; }
-    QCheckBox { color: #2D2D2D; font-size: 12px; padding: 3px 0; }
+    QCheckBox { color: #2D2D2D; font-size: 14px; padding: 3px 0; }
     QCheckBox::indicator {
         width: 14px; height: 14px;
         border: 1px solid #C8A2C9; border-radius: 3px;
@@ -387,7 +387,7 @@ class LogViewer(QMainWindow):
 
         top = QHBoxLayout()
         self.lbl_file = QLabel("No file loaded")
-        self.lbl_file.setStyleSheet("color: #8B7B8C; font-size: 13px;")
+        self.lbl_file.setStyleSheet("color: #8B7B8C; font-size: 15px;")
         self.btn_load = QPushButton("Load Log File")
         self.btn_load.setStyleSheet("background-color: #A67DA8; color: #FDF9FF;")
         self.btn_load.setFixedWidth(180)
@@ -405,7 +405,7 @@ class LogViewer(QMainWindow):
         self.main_tabs.addTab(self._build_compare_tab(),  "Compare flights")
 
         self.lbl_status = QLabel("Load a log file to get started.")
-        self.lbl_status.setStyleSheet("color: #8B7B8C; font-size: 12px;")
+        self.lbl_status.setStyleSheet("color: #8B7B8C; font-size: 14px;")
         main.addWidget(self.lbl_status)
 
     def _build_summary_tab(self):
@@ -459,7 +459,7 @@ class LogViewer(QMainWindow):
             b = QPushButton(label)
             b.setStyleSheet(
                 "background-color: #E8D5E9; color: #2D2D2D; "
-                "padding: 4px 10px; font-size: 11px;"
+                "padding: 4px 10px; font-size: 13px;"
             )
             b.clicked.connect(slot)
             btn_row.addWidget(b)
@@ -519,7 +519,7 @@ class LogViewer(QMainWindow):
         filename = path.replace("\\", "/").split("/")[-1]
         self.lbl_file.setText(f"  {filename}")
         self.lbl_file.setStyleSheet(
-            "color: #A67DA8; font-size: 13px; font-weight: bold;"
+            "color: #A67DA8; font-size: 15px; font-weight: bold;"
         )
         self._populate_table()
         self._populate_summary()
@@ -657,7 +657,7 @@ class LogViewer(QMainWindow):
         def thresh_row(label, default):
             row = QHBoxLayout()
             lbl = QLabel(label)
-            lbl.setStyleSheet("color: #8B7B8C; font-size: 11px;")
+            lbl.setStyleSheet("color: #8B7B8C; font-size: 13px;")
             lbl.setFixedWidth(140)
             inp = QLineEdit(default)
             inp.setFixedWidth(55)
@@ -746,7 +746,7 @@ class LogViewer(QMainWindow):
         lbl.setStyleSheet(f"""
             background-color: #FDF9FF; border: 2px solid {color};
             border-radius: 6px; color: {color};
-            font-weight: bold; font-size: 13px; padding: 6px 16px;
+            font-weight: bold; font-size: 15px; padding: 6px 16px;
         """)
         return lbl
 
@@ -880,7 +880,7 @@ class LogViewer(QMainWindow):
         btn_add = QPushButton("＋  Add Flight")
         btn_add.setStyleSheet(
             "background-color: #E8D5E9; color: #2D2D2D; "
-            "padding: 5px; font-size: 12px;"
+            "padding: 5px; font-size: 14px;"
         )
         btn_add.clicked.connect(self._add_compare_slot)
         sb.addWidget(btn_add)
@@ -942,7 +942,7 @@ class LogViewer(QMainWindow):
     def _compare_section_label(self, text):
         lbl = QLabel(text)
         lbl.setStyleSheet(
-            "color: #2D2D2D; font-weight: bold; font-size: 12px;"
+            "color: #2D2D2D; font-weight: bold; font-size: 14px;"
         )
         return lbl
 
@@ -960,20 +960,20 @@ class LogViewer(QMainWindow):
             row.setSpacing(4)
 
             dot = QLabel("⬤")
-            dot.setStyleSheet(f"color: {color}; font-size: 14px;")
+            dot.setStyleSheet(f"color: {color}; font-size: 16px;")
             dot.setFixedWidth(18)
 
             if flight["name"]:
                 btn_load = QPushButton(flight["name"])
                 btn_load.setStyleSheet(
                     f"background-color: {color}; color: #FDF9FF; "
-                    f"padding: 4px 6px; font-size: 10px; text-align: left;"
+                    f"padding: 4px 6px; font-size: 12px; text-align: left;"
                 )
             else:
                 btn_load = QPushButton(f"Flight {i + 1}: Load file")
                 btn_load.setStyleSheet(
                     f"background-color: #E8D5E9; color: #2D2D2D; "
-                    f"padding: 4px 6px; font-size: 10px;"
+                    f"padding: 4px 6px; font-size: 12px;"
                 )
             btn_load.clicked.connect(
                 lambda _, idx=i: self._load_compare_slot(idx)
@@ -983,7 +983,7 @@ class LogViewer(QMainWindow):
             btn_x.setFixedSize(22, 22)
             btn_x.setStyleSheet(
                 "background-color: #E8D5E9; color: #8B7B8C; "
-                "padding: 0; font-size: 14px; font-weight: bold;"
+                "padding: 0; font-size: 16px; font-weight: bold;"
             )
             btn_x.clicked.connect(
                 lambda _, idx=i: self._remove_compare_slot(idx)
