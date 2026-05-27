@@ -236,7 +236,15 @@ class VibrationMonitor(QGroupBox):
 
         clipping_row = len(axes)
         self.lbl_clipping = QLabel("Clipping:  --")
-        self.lbl_clipping.setStyleSheet("color: #1F6F5F; font-size: 15px;")
+        self.lbl_clipping.setStyleSheet("""
+            color: #2ecc71;
+            font-size: 15px;
+            font-weight: bold;
+            background-color: #f0fdf6;
+            border: 1.5px solid #2ecc71;
+            border-radius: 10px;
+            padding: 5px 14px;
+        """)
         layout.addWidget(self.lbl_clipping, clipping_row, 0, 1, 3)
 
         self.setLayout(layout)
@@ -271,11 +279,27 @@ class VibrationMonitor(QGroupBox):
 
         if clipping is not None:
             clip_color = "#e74c3c" if clipping > 0 else "#2ecc71"
-            self.lbl_clipping.setStyleSheet(f"color: {clip_color}; font-size: 15px;")
+            self.lbl_clipping.setStyleSheet(f"""
+                color: {clip_color};
+                font-size: 15px;
+                font-weight: bold;
+                background-color: #f0fdf6;
+                border: 1.5px solid {clip_color};
+                border-radius: 10px;
+                padding: 5px 14px;
+            """)
             self.lbl_clipping.setText(f"Clipping:  {int(clipping)}")
         else:
             self.lbl_clipping.setText("Clipping:  --")
-            self.lbl_clipping.setStyleSheet("color: #1F6F5F; font-size: 15px;")
+            self.lbl_clipping.setStyleSheet("""
+                color: #2ecc71;
+                font-size: 15px;
+                font-weight: bold;
+                background-color: #f0fdf6;
+                border: 1.5px solid #2ecc71;
+                border-radius: 10px;
+                padding: 5px 14px;
+            """)
 
 
 class MaxValuesPanel(QGroupBox):
@@ -461,8 +485,16 @@ class SensorHealthPanel(QGroupBox):
             healthy = bool(health & bit)
             color = "#2ecc71" if healthy else "#e74c3c"
             lbl = QLabel(f"● {name}")
-            lbl.setStyleSheet(f"color: {color}; font-size: 15px;")
-            lbl.setFixedHeight(20)
+            lbl.setStyleSheet(f"""
+                color: {color};
+                font-size: 15px;
+                font-weight: bold;
+                background-color: #f0fdf6;
+                border: 1.5px solid {color};
+                border-radius: 10px;
+                padding: 5px 14px;
+            """)
+            lbl.setFixedHeight(36)
             self.grid.addWidget(lbl, row, col)
             col += 1
             if col > 2:
@@ -808,7 +840,7 @@ class Dashboard(QMainWindow):
         self.inner_tabs.tabBar().setExpanding(True)
         self.inner_tabs.setStyleSheet("""
             QTabWidget::pane { border: 2px solid #2FA084; border-radius: 4px; }
-            QTabBar::tab { background: #2FA084; color: #EEEEEE; padding: 6px 12px; font-size: 15px; }
+            QTabBar::tab { background: #2FA084; color: #EEEEEE; padding: 6px 22px; font-size: 15px; min-width: 180px; }
             QTabBar::tab:selected { background: #6FCF94; color: #EEEEEE; border-top: 2px solid #1F6F5F; }
         """)
 
@@ -848,7 +880,7 @@ class Dashboard(QMainWindow):
 
         search_row = QHBoxLayout()
         lbl_search = QLabel("Filter:")
-        lbl_search.setStyleSheet("color: #1F6F5F; font-size: 14px;")
+        lbl_search.setStyleSheet("color: #2A8870; font-size: 14px;")
         self.mavlink_search = QLineEdit()
         self.mavlink_search.setPlaceholderText("Type to filter by message or field name...")
         self.mavlink_search.setStyleSheet("""
