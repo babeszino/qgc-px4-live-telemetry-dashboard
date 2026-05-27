@@ -560,8 +560,9 @@ class ParameterEditor(QMainWindow):
         if reply != QMessageBox.Yes:
             return
 
-        # flush needed before sending so the confirmation loop
+        # this flush is needed before sending so the confirmation loop
         # so the confirmation loop only sees responses to our PARAM_SET
+        # [ NOT HAVING THIS SHOWS THE PARAMETER VALUES UNCHANGED SINCE START ]
         while True:
             try:
                 stale = self.master.recv_match(blocking=False)

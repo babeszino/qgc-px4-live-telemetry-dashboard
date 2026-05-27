@@ -58,24 +58,47 @@ DEFAULT_DYNAMIC_KEYS = [
     "ATTITUDE.yaw",
 ]
 
-DARK_STYLE = """
-    QMainWindow, QWidget { background-color: #0a0a0a; color: #ecf0f1; font-family: Consolas, Arial; }
-    QGroupBox { border: 2px solid #2c3e50; border-radius: 6px; margin-top: 10px; font-weight: bold; padding: 6px; }
+STYLE = """
+    QMainWindow, QWidget {
+        background-color: #EEEEEE;
+        color: #6FCF94;
+        font-family: Consolas, Arial;
+    }
+    QGroupBox {
+        border: 2px solid #2FA084;
+        border-radius: 6px;
+        margin-top: 10px;
+        font-weight: bold;
+        padding: 6px;
+        color: #EEEEEE;
+        background-color: #6FCF94;
+    }
     QGroupBox::title { padding: 0 4px; }
-    QComboBox { background-color: #2c3e50; color: white; padding: 6px; font-size: 12px; border: none; border-radius: 3px; }
+    QLabel { background-color: transparent; }
+    QComboBox {
+        background-color: #2FA084;
+        color: #EEEEEE;
+        padding: 6px;
+        font-size: 15px;
+        border: none;
+        border-radius: 3px;
+    }
     QComboBox::drop-down { border: none; }
-    QPushButton { padding: 10px 20px; font-weight: bold; font-size: 13px; border-radius: 5px; border: none; }
-    QLineEdit { background-color: #2c3e50; color: white; padding: 8px 10px; font-size: 13px; border: 1px solid #3d5166; border-radius: 4px; }
-"""
-
-LIGHT_STYLE = """
-    QMainWindow, QWidget { background-color: #f0f0f0; color: #1a1a1a; font-family: Consolas, Arial; }
-    QGroupBox { border: 2px solid #bdc3c7; border-radius: 6px; margin-top: 10px; font-weight: bold; padding: 6px; color: #1a1a1a; }
-    QGroupBox::title { padding: 0 4px; }
-    QComboBox { background-color: #dde3ea; color: #1a1a1a; padding: 6px; font-size: 12px; border: none; border-radius: 3px; }
-    QComboBox::drop-down { border: none; }
-    QPushButton { padding: 10px 20px; font-weight: bold; font-size: 13px; border-radius: 5px; border: none; }
-    QLineEdit { background-color: #ffffff; color: #1a1a1a; padding: 8px 10px; font-size: 13px; border: 1px solid #bdc3c7; border-radius: 4px; }
+    QPushButton {
+        padding: 10px 20px;
+        font-weight: bold;
+        font-size: 14px;
+        border-radius: 5px;
+        border: none;
+    }
+    QLineEdit {
+        background-color: #6FCF94;
+        color: #EEEEEE;
+        padding: 8px 10px;
+        font-size: 14px;
+        border: 1px solid #2FA084;
+        border-radius: 4px;
+    }
 """
 
 
@@ -180,7 +203,7 @@ class VibrationMonitor(QGroupBox):
         axes = ["X", "Y", "Z"]
         for i, axis in enumerate(axes):
             lbl_name = QLabel(f"Vib {axis}")
-            lbl_name.setStyleSheet("color: #95a5a6; font-size: 12px;")
+            lbl_name.setStyleSheet("color: #1F6F5F; font-size: 15px;")
             lbl_name.setFixedWidth(40)
 
             bar = QProgressBar()
@@ -191,8 +214,8 @@ class VibrationMonitor(QGroupBox):
             bar.setFixedHeight(22)
             bar.setStyleSheet("""
                 QProgressBar {
-                    background-color: #1a1a1a;
-                    border: 1px solid #2c3e50;
+                    background-color: #6FCF94;
+                    border: 1px solid #2FA084;
                     border-radius: 3px;
                 }
                 QProgressBar::chunk {
@@ -202,7 +225,7 @@ class VibrationMonitor(QGroupBox):
             """)
 
             lbl_val = QLabel("--")
-            lbl_val.setStyleSheet("color: #ecf0f1; font-size: 12px;")
+            lbl_val.setStyleSheet("color: #EEEEEE; font-size: 15px;")
             lbl_val.setFixedWidth(60)
 
             layout.addWidget(lbl_name, i, 0)
@@ -213,7 +236,7 @@ class VibrationMonitor(QGroupBox):
 
         clipping_row = len(axes)
         self.lbl_clipping = QLabel("Clipping:  --")
-        self.lbl_clipping.setStyleSheet("color: #95a5a6; font-size: 12px;")
+        self.lbl_clipping.setStyleSheet("color: #1F6F5F; font-size: 15px;")
         layout.addWidget(self.lbl_clipping, clipping_row, 0, 1, 3)
 
         self.setLayout(layout)
@@ -234,8 +257,8 @@ class VibrationMonitor(QGroupBox):
                 color = "#e74c3c"
             bar.setStyleSheet(f"""
                 QProgressBar {{
-                    background-color: #1a1a1a;
-                    border: 1px solid #2c3e50;
+                    background-color: #6FCF94;
+                    border: 1px solid #2FA084;
                     border-radius: 3px;
                 }}
                 QProgressBar::chunk {{
@@ -248,11 +271,11 @@ class VibrationMonitor(QGroupBox):
 
         if clipping is not None:
             clip_color = "#e74c3c" if clipping > 0 else "#2ecc71"
-            self.lbl_clipping.setStyleSheet(f"color: {clip_color}; font-size: 12px;")
+            self.lbl_clipping.setStyleSheet(f"color: {clip_color}; font-size: 15px;")
             self.lbl_clipping.setText(f"Clipping:  {int(clipping)}")
         else:
             self.lbl_clipping.setText("Clipping:  --")
-            self.lbl_clipping.setStyleSheet("color: #95a5a6; font-size: 12px;")
+            self.lbl_clipping.setStyleSheet("color: #1F6F5F; font-size: 15px;")
 
 
 class MaxValuesPanel(QGroupBox):
@@ -269,9 +292,9 @@ class MaxValuesPanel(QGroupBox):
         self.labels = {}
         for i, (name, (default, color)) in enumerate(self.values.items()):
             lbl_name = QLabel(name)
-            lbl_name.setStyleSheet("color: #95a5a6; font-size: 11px;")
+            lbl_name.setStyleSheet("color: #1F6F5F; font-size: 14px;")
             lbl_val = QLabel(default)
-            lbl_val.setFont(QFont("Arial", 14, QFont.Bold))
+            lbl_val.setFont(QFont("Arial", 15, QFont.Bold))
             lbl_val.setStyleSheet(f"color: {color};")
             lbl_val.setAlignment(Qt.AlignRight)
             layout.addWidget(lbl_name, i, 0)
@@ -297,7 +320,7 @@ class MotorOutputPanel(QGroupBox):
         self.labels = []
         for i in range(4):
             lbl_name = QLabel(f"M{i+1}")
-            lbl_name.setStyleSheet("color: #95a5a6; font-size: 12px;")
+            lbl_name.setStyleSheet("color: #1F6F5F; font-size: 15px;")
             lbl_name.setFixedWidth(24)
 
             bar = QProgressBar()
@@ -308,8 +331,8 @@ class MotorOutputPanel(QGroupBox):
             bar.setFixedHeight(22)
             bar.setStyleSheet("""
                 QProgressBar {
-                    background-color: #1a1a1a;
-                    border: 1px solid #2c3e50;
+                    background-color: #6FCF94;
+                    border: 1px solid #2FA084;
                     border-radius: 3px;
                 }
                 QProgressBar::chunk {
@@ -319,7 +342,7 @@ class MotorOutputPanel(QGroupBox):
             """)
 
             lbl_val = QLabel("--")
-            lbl_val.setStyleSheet("color: #ecf0f1; font-size: 12px;")
+            lbl_val.setStyleSheet("color: #EEEEEE; font-size: 15px;")
             lbl_val.setFixedWidth(50)
 
             layout.addWidget(lbl_name, i, 0)
@@ -335,7 +358,7 @@ class MotorOutputPanel(QGroupBox):
             val = outputs[i] if i < len(outputs) else None
             if val is None or val < 900:
                 bar.setValue(1000)
-                bar.setStyleSheet(bar.styleSheet().replace("#2980b9", "#2c3e50"))
+                bar.setStyleSheet(bar.styleSheet().replace("#2980b9", "#2FA084"))
                 lbl.setText("--")
             else:
                 clamped = max(1000, min(2000, int(val)))
@@ -348,8 +371,8 @@ class MotorOutputPanel(QGroupBox):
                     color = "#e74c3c"
                 bar.setStyleSheet(f"""
                     QProgressBar {{
-                        background-color: #1a1a1a;
-                        border: 1px solid #2c3e50;
+                        background-color: #6FCF94;
+                        border: 1px solid #2FA084;
                         border-radius: 3px;
                     }}
                     QProgressBar::chunk {{
@@ -368,7 +391,7 @@ class StatusTextPanel(QGroupBox):
 
         btn_clear = QPushButton("Clear")
         btn_clear.setFixedWidth(70)
-        btn_clear.setStyleSheet("background-color: #2c3e50; color: white; padding: 4px; font-size: 11px;")
+        btn_clear.setStyleSheet("background-color: #2FA084; color: #EEEEEE; padding: 4px; font-size: 14px;")
         btn_clear.clicked.connect(self.clear)
 
         top = QHBoxLayout()
@@ -382,11 +405,11 @@ class StatusTextPanel(QGroupBox):
         self.log.setFixedHeight(160)
         self.log.setStyleSheet("""
             QTextEdit {
-                background-color: #0d0d0d;
-                color: #ecf0f1;
+                background-color: #6FCF94;
+                color: #EEEEEE;
                 font-family: Consolas, monospace;
-                font-size: 12px;
-                border: 1px solid #2c3e50;
+                font-size: 15px;
+                border: 1px solid #2FA084;
                 border-radius: 4px;
             }
         """)
@@ -424,7 +447,7 @@ class SensorHealthPanel(QGroupBox):
 
         if present is None:
             lbl = QLabel("No data")
-            lbl.setStyleSheet("color: #7f8c8d;")
+            lbl.setStyleSheet("color: #1F6F5F;")
             self.grid.addWidget(lbl, 0, 0)
             return
 
@@ -438,7 +461,7 @@ class SensorHealthPanel(QGroupBox):
             healthy = bool(health & bit)
             color = "#2ecc71" if healthy else "#e74c3c"
             lbl = QLabel(f"● {name}")
-            lbl.setStyleSheet(f"color: {color}; font-size: 12px;")
+            lbl.setStyleSheet(f"color: {color}; font-size: 15px;")
             lbl.setFixedHeight(20)
             self.grid.addWidget(lbl, row, col)
             col += 1
@@ -452,7 +475,7 @@ class FixedCard(QGroupBox):
         super().__init__(title)
         layout = QVBoxLayout()
         self.label = QLabel(default_text)
-        self.label.setFont(QFont("Arial", 16, QFont.Bold))
+        self.label.setFont(QFont("Arial", 17, QFont.Bold))
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setStyleSheet(f"color: {color}; padding: 10px;")
         layout.addWidget(self.label)
@@ -460,7 +483,7 @@ class FixedCard(QGroupBox):
         dot_row.addStretch()
         self.indicator = QLabel()
         self.indicator.setFixedSize(12, 12)
-        self.indicator.setStyleSheet("background-color: #7f8c8d; border-radius: 6px;")
+        self.indicator.setStyleSheet("background-color: #2FA084; border-radius: 6px;")
         dot_row.addWidget(self.indicator)
         layout.addLayout(dot_row)
         self.setLayout(layout)
@@ -486,11 +509,11 @@ class SearchableComboBox(QWidget):
         self.search_box = QLineEdit()
         self.search_box.setPlaceholderText("Search...")
         self.search_box.setStyleSheet("""
-            background-color: #ffffff;
-            color: #1a1a1a;
+            background-color: #6FCF94;
+            color: #EEEEEE;
             padding: 3px 6px;
-            font-size: 11px;
-            border: 1px solid #bdc3c7;
+            font-size: 14px;
+            border: 1px solid #2FA084;
             border-radius: 3px;
         """)
         self.search_box.textChanged.connect(self._on_search)
@@ -540,15 +563,15 @@ class DynamicCard(QGroupBox):
         self.combo.currentTextChanged.connect(self._on_combo_changed)
         layout.addWidget(self.combo)
         self.label = QLabel("--")
-        self.label.setFont(QFont("Arial", 18, QFont.Bold))
-        self.label.setStyleSheet("color: #3498db; margin: 8px;")
+        self.label.setFont(QFont("Arial", 19, QFont.Bold))
+        self.label.setStyleSheet("color: #1F6F5F; margin: 8px;")
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
         dot_row = QHBoxLayout()
         dot_row.addStretch()
         self.indicator = QLabel()
         self.indicator.setFixedSize(12, 12)
-        self.indicator.setStyleSheet("background-color: #7f8c8d; border-radius: 6px;")
+        self.indicator.setStyleSheet("background-color: #2FA084; border-radius: 6px;")
         dot_row.addWidget(self.indicator)
         layout.addLayout(dot_row)
         self.setLayout(layout)
@@ -587,17 +610,17 @@ class MissionCard(QGroupBox):
         layout.setSpacing(8)
 
         self.lbl_waypoint = QLabel("Waypoint: --")
-        self.lbl_waypoint.setFont(QFont("Arial", 16, QFont.Bold))
+        self.lbl_waypoint.setFont(QFont("Arial", 17, QFont.Bold))
         self.lbl_waypoint.setStyleSheet("color: #3498db;")
         self.lbl_waypoint.setAlignment(Qt.AlignCenter)
 
         self.lbl_distance = QLabel("Distance to WP: --")
-        self.lbl_distance.setFont(QFont("Arial", 14))
-        self.lbl_distance.setStyleSheet("color: #ecf0f1;")
+        self.lbl_distance.setFont(QFont("Arial", 15))
+        self.lbl_distance.setStyleSheet("color: #EEEEEE;")
         self.lbl_distance.setAlignment(Qt.AlignCenter)
 
         self.lbl_reached = QLabel("")
-        self.lbl_reached.setFont(QFont("Arial", 12))
+        self.lbl_reached.setFont(QFont("Arial", 13))
         self.lbl_reached.setStyleSheet("color: #2ecc71;")
         self.lbl_reached.setAlignment(Qt.AlignCenter)
 
@@ -605,15 +628,15 @@ class MissionCard(QGroupBox):
         self.progress.setTextVisible(True)
         self.progress.setStyleSheet("""
             QProgressBar {
-                border: 1px solid #2c3e50;
+                border: 1px solid #2FA084;
                 border-radius: 4px;
-                background-color: #1a1a1a;
+                background-color: #6FCF94;
                 color: white;
                 text-align: center;
                 height: 20px;
             }
             QProgressBar::chunk {
-                background-color: #2980b9;
+                background-color: #1F6F5F;
                 border-radius: 3px;
             }
         """)
@@ -662,8 +685,7 @@ class Dashboard(QMainWindow):
         super().__init__()
         self.setWindowTitle("px4-qgc-dashboard")
         self.resize(1200, 520)
-        self._dark_mode = False
-        self.setStyleSheet(LIGHT_STYLE)
+        self.setStyleSheet(STYLE)
 
         self.master = None
         self.is_connected = False
@@ -724,7 +746,7 @@ class Dashboard(QMainWindow):
         top.setSpacing(10)
 
         lbl_port = QLabel("Listen port:")
-        lbl_port.setStyleSheet("color: #95a5a6; font-size: 13px;")
+        lbl_port.setStyleSheet("color: #1F6F5F; font-size: 14px;")
         self.input_port = QLineEdit("14540")
         self.input_port.setFixedWidth(90)
 
@@ -734,7 +756,7 @@ class Dashboard(QMainWindow):
         self.btn_connect.clicked.connect(self.toggle_connection)
 
         self.lbl_status = QLabel("Waiting...")
-        self.lbl_status.setStyleSheet("color: #7f8c8d; font-size: 13px;")
+        self.lbl_status.setStyleSheet("color: #1F6F5F; font-size: 14px;")
 
         top.addWidget(lbl_port)
         top.addWidget(self.input_port)
@@ -742,20 +764,15 @@ class Dashboard(QMainWindow):
         top.addSpacing(16)
         top.addWidget(self.lbl_status)
         top.addStretch()
-        self.btn_theme = QPushButton("☀")
-        self.btn_theme.setFixedSize(36, 36)
-        self.btn_theme.setStyleSheet("background-color: #bdc3c7; color: #1a1a1a; font-size: 16px; padding: 0;")
-        self.btn_theme.setToolTip("Toggle light/dark theme")
-        self.btn_theme.clicked.connect(self.toggle_theme)
-        top.addWidget(self.btn_theme)
         main_layout.addLayout(top)
 
         self.main_tabs = QTabWidget()
         self.main_tabs.setStyleSheet("""
-            QTabWidget::pane { border: 2px solid #bdc3c7; border-radius: 4px; }
-            QTabBar::tab { background: #dde3ea; color: #555; padding: 8px 24px; font-size: 13px; font-weight: bold; }
-            QTabBar::tab:selected { background: #ffffff; color: #1a1a1a; border-top: 2px solid #3498db; }
+            QTabWidget::pane { border: 2px solid #2FA084; border-radius: 4px; }
+            QTabBar::tab { background: #2FA084; color: #EEEEEE; padding: 8px 24px; font-size: 14px; font-weight: bold; min-width: 140px; }
+            QTabBar::tab:selected { background: #6FCF94; color: #EEEEEE; border-top: 2px solid #1F6F5F; }
         """)
+        self.main_tabs.tabBar().setExpanding(True)
         self.main_tabs.currentChanged.connect(self._on_main_tab_changed)
         main_layout.addWidget(self.main_tabs)
 
@@ -788,10 +805,11 @@ class Dashboard(QMainWindow):
         layout.addLayout(dynamic_row)
 
         self.inner_tabs = QTabWidget()
+        self.inner_tabs.tabBar().setExpanding(True)
         self.inner_tabs.setStyleSheet("""
-            QTabWidget::pane { border: 2px solid #bdc3c7; border-radius: 4px; }
-            QTabBar::tab { background: #dde3ea; color: #555; padding: 6px 20px; font-size: 12px; }
-            QTabBar::tab:selected { background: #ffffff; color: #1a1a1a; border-top: 2px solid #3498db; }
+            QTabWidget::pane { border: 2px solid #2FA084; border-radius: 4px; }
+            QTabBar::tab { background: #2FA084; color: #EEEEEE; padding: 6px 12px; font-size: 15px; }
+            QTabBar::tab:selected { background: #6FCF94; color: #EEEEEE; border-top: 2px solid #1F6F5F; }
         """)
 
         health_widget = QWidget()
@@ -830,13 +848,13 @@ class Dashboard(QMainWindow):
 
         search_row = QHBoxLayout()
         lbl_search = QLabel("Filter:")
-        lbl_search.setStyleSheet("color: #95a5a6; font-size: 13px;")
+        lbl_search.setStyleSheet("color: #1F6F5F; font-size: 14px;")
         self.mavlink_search = QLineEdit()
         self.mavlink_search.setPlaceholderText("Type to filter by message or field name...")
         self.mavlink_search.setStyleSheet("""
-            background-color: #ffffff; color: #1a1a1a;
-            padding: 6px 10px; font-size: 13px;
-            border: 1px solid #bdc3c7; border-radius: 4px;
+            background-color: #6FCF94; color: #EEEEEE;
+            padding: 6px 10px; font-size: 15px;
+            border: 1px solid #2FA084; border-radius: 4px;
         """)
         self.mavlink_search.textChanged.connect(self.update_mavlink_table)
         search_row.addWidget(lbl_search)
@@ -857,108 +875,20 @@ class Dashboard(QMainWindow):
         self.mavlink_table.setSortingEnabled(False)
         self.mavlink_table.setStyleSheet("""
             QTableWidget {
-                background-color: #ffffff; color: #1a1a1a;
-                font-family: Consolas, monospace; font-size: 12px;
-                border: 1px solid #bdc3c7; gridline-color: #e0e0e0;
+                background-color: #6FCF94; color: #111844;
+                font-family: Consolas, monospace; font-size: 15px;
+                border: 1px solid #2FA084; gridline-color: #2FA084;
+                font-weight: bold;
             }
-            QTableWidget::item:selected { background-color: #dde3ea; }
+            QTableWidget::item:selected { background-color: #2FA084; color: #EEEEEE; }
             QHeaderView::section {
-                background-color: #dde3ea; color: #1a1a1a;
-                padding: 6px; border: none; font-weight: bold; font-size: 12px;
+                background-color: #2FA084; color: #EEEEEE;
+                padding: 6px; border: none; font-weight: bold; font-size: 15px;
             }
         """)
         inspector_layout.addWidget(self.mavlink_table)
 
         self.main_tabs.addTab(inspector_widget, "MAVLink Inspector")
-        self._apply_bar_styles(dark=False)
-
-    def _apply_bar_styles(self, dark):
-        if dark:
-            bar_bg     = "#1a1a1a"
-            bar_border = "#2c3e50"
-        else:
-            bar_bg     = "#e0e0e0"
-            bar_border = "#bdc3c7"
-
-        motor_style = """
-            QProgressBar {{ border: 1px solid {border}; border-radius: 3px; background-color: {bg}; text-align: center; }}
-            QProgressBar::chunk {{ background-color: #2980b9; border-radius: 2px; }}
-        """.format(bg=bar_bg, border=bar_border)
-
-        vib_style = """
-            QProgressBar {{ border: 1px solid {border}; border-radius: 3px; background-color: {bg}; text-align: center; }}
-            QProgressBar::chunk {{ background-color: #2ecc71; border-radius: 2px; }}
-        """.format(bg=bar_bg, border=bar_border)
-
-        for bar in self.motor_panel.bars:
-            bar.setStyleSheet(motor_style)
-        for bar in self.vib_monitor.bars.values():
-            bar.setStyleSheet(vib_style)
-
-    def toggle_theme(self):
-        current_size = self.size()
-        self.setFixedSize(current_size)
-        self._dark_mode = not self._dark_mode
-        style = DARK_STYLE if self._dark_mode else LIGHT_STYLE
-
-        if self._dark_mode:
-            self.btn_theme.setText("☀")
-            self.btn_theme.setStyleSheet("background-color: #2c3e50; color: white; font-size: 16px; padding: 0;")
-            tab_style = """
-                QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
-                QTabBar::tab { background: #2c3e50; color: #95a5a6; padding: 8px 24px; font-size: 13px; font-weight: bold; }
-                QTabBar::tab:selected { background: #1a1a1a; color: white; border-top: 2px solid #3498db; }
-            """
-            log_style = "QTextEdit { background-color: #0d0d0d; color: #ecf0f1; font-family: Consolas; font-size: 12px; border: 1px solid #2c3e50; }"
-        else:
-            self.btn_theme.setText("☀")
-            self.btn_theme.setStyleSheet("background-color: #bdc3c7; color: #1a1a1a; font-size: 16px; padding: 0;")
-            tab_style = """
-                QTabWidget::pane { border: 2px solid #bdc3c7; border-radius: 4px; }
-                QTabBar::tab { background: #dde3ea; color: #555; padding: 8px 24px; font-size: 13px; font-weight: bold; }
-                QTabBar::tab:selected { background: #ffffff; color: #1a1a1a; border-top: 2px solid #3498db; }
-            """
-            log_style = "QTextEdit { background-color: #ffffff; color: #1a1a1a; font-family: Consolas; font-size: 12px; border: 1px solid #bdc3c7; }"
-
-        self.setStyleSheet(style)
-        self.main_tabs.setStyleSheet(tab_style)
-        self.statustext_panel.log.setStyleSheet(log_style)
-        self._apply_bar_styles(dark=self._dark_mode)
-
-        if self._dark_mode:
-            inner_tab_style = """
-                QTabWidget::pane { border: 2px solid #2c3e50; border-radius: 4px; }
-                QTabBar::tab { background: #2c3e50; color: #95a5a6; padding: 6px 20px; font-size: 12px; }
-                QTabBar::tab:selected { background: #1a1a1a; color: white; border-top: 2px solid #3498db; }
-            """
-            search_box_style = "background-color: #1a1a1a; color: #ecf0f1; padding: 3px 6px; font-size: 11px; border: 1px solid #3d5166; border-radius: 3px;"
-            mavlink_search_style = "background-color: #1a1a1a; color: #ecf0f1; padding: 6px 10px; font-size: 13px; border: 1px solid #3d5166; border-radius: 4px;"
-            mavlink_table_style = """
-                QTableWidget { background-color: #0d0d0d; color: #ecf0f1; font-family: Consolas, monospace; font-size: 12px; border: 1px solid #2c3e50; gridline-color: #1a1a1a; }
-                QTableWidget::item:selected { background-color: #2c3e50; }
-                QHeaderView::section { background-color: #1a2535; color: #ecf0f1; padding: 6px; border: none; font-weight: bold; font-size: 12px; }
-            """
-        else:
-            inner_tab_style = """
-                QTabWidget::pane { border: 2px solid #bdc3c7; border-radius: 4px; }
-                QTabBar::tab { background: #dde3ea; color: #555; padding: 6px 20px; font-size: 12px; }
-                QTabBar::tab:selected { background: #ffffff; color: #1a1a1a; border-top: 2px solid #3498db; }
-            """
-            search_box_style = "background-color: #ffffff; color: #1a1a1a; padding: 3px 6px; font-size: 11px; border: 1px solid #bdc3c7; border-radius: 3px;"
-            mavlink_search_style = "background-color: #ffffff; color: #1a1a1a; padding: 6px 10px; font-size: 13px; border: 1px solid #bdc3c7; border-radius: 4px;"
-            mavlink_table_style = """
-                QTableWidget { background-color: #ffffff; color: #1a1a1a; font-family: Consolas, monospace; font-size: 12px; border: 1px solid #bdc3c7; gridline-color: #e0e0e0; }
-                QTableWidget::item:selected { background-color: #dde3ea; }
-                QHeaderView::section { background-color: #dde3ea; color: #1a1a1a; padding: 6px; border: none; font-weight: bold; font-size: 12px; }
-            """
-
-        self.inner_tabs.setStyleSheet(inner_tab_style)
-        self.mavlink_search.setStyleSheet(mavlink_search_style)
-        self.mavlink_table.setStyleSheet(mavlink_table_style)
-        for card in self.dynamic_cards:
-            card.combo.search_box.setStyleSheet(search_box_style)
-        self.setMinimumSize(900, 600)
-        self.setMaximumSize(16777215, 16777215)
 
     def update_mavlink_table(self):
         if not self.raw_telemetry:
@@ -1084,7 +1014,8 @@ class Dashboard(QMainWindow):
             self.is_connecting = True
             self.defaults_applied = False
             self._set_inputs_enabled(False)
-            self.btn_connect.setText("Connecting...")
+            self.btn_connect.setText("Connecting…")
+            self.btn_connect.setFixedWidth(155)
             self.btn_connect.setStyleSheet("background-color: #e67e22; color: white;")
             self.lbl_status.setText(status_msg)
             self.heartbeat_timer.start(200)
@@ -1147,6 +1078,7 @@ class Dashboard(QMainWindow):
         self.last_current_time = None
         self._set_inputs_enabled(True)
         self.btn_connect.setText("Connect")
+        self.btn_connect.setFixedWidth(130)
         self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
         self.lbl_status.setText("Disconnected.")
 
@@ -1158,6 +1090,7 @@ class Dashboard(QMainWindow):
                 self.is_connecting = False
                 self.is_connected = True
                 self.heartbeat_timer.stop()
+                self.btn_connect.setFixedWidth(155)
                 self.btn_connect.setText("Disconnect")
                 self.btn_connect.setStyleSheet("background-color: #c0392b; color: white;")
                 self.lbl_status.setText("Connected — receiving telemetry")
