@@ -316,10 +316,10 @@ class MaxValuesPanel(QGroupBox):
         self.labels = {}
         for i, (name, (default, color)) in enumerate(self.values.items()):
             lbl_name = QLabel(name)
-            lbl_name.setStyleSheet("color: #1F6F5F; font-size: 14px;")
+            lbl_name.setStyleSheet("color: #111844; font-size: 13px; font-weight: bold;")
             lbl_val = QLabel(default)
             lbl_val.setFont(QFont("Arial", 15, QFont.Bold))
-            lbl_val.setStyleSheet(f"color: {color};")
+            lbl_val.setStyleSheet(_value_box_style(color))
             lbl_val.setAlignment(Qt.AlignRight)
             layout.addWidget(lbl_name, i, 0)
             layout.addWidget(lbl_val,  i, 1)
@@ -502,6 +502,16 @@ class SensorHealthPanel(QGroupBox):
                 row += 1
 
 
+def _value_box_style(color):
+    return f"""
+        color: {color};
+        background-color: #f0fdf6;
+        border: 1.5px solid {color};
+        border-radius: 10px;
+        padding: 8px 16px;
+    """
+
+
 class FixedCard(QGroupBox):
     def __init__(self, title, default_text, color):
         super().__init__(title)
@@ -509,7 +519,7 @@ class FixedCard(QGroupBox):
         self.label = QLabel(default_text)
         self.label.setFont(QFont("Arial", 17, QFont.Bold))
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet(f"color: {color}; padding: 10px;")
+        self.label.setStyleSheet(_value_box_style(color))
         layout.addWidget(self.label)
         dot_row = QHBoxLayout()
         dot_row.addStretch()
@@ -523,7 +533,7 @@ class FixedCard(QGroupBox):
     def set_text(self, text, color=None):
         self.label.setText(text)
         if color:
-            self.label.setStyleSheet(f"color: {color}; padding: 10px;")
+            self.label.setStyleSheet(_value_box_style(color))
 
     def set_indicator(self, color):
         self.indicator.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
@@ -596,7 +606,7 @@ class DynamicCard(QGroupBox):
         layout.addWidget(self.combo)
         self.label = QLabel("--")
         self.label.setFont(QFont("Arial", 19, QFont.Bold))
-        self.label.setStyleSheet("color: #1F6F5F; margin: 8px;")
+        self.label.setStyleSheet(_value_box_style("#2FA084"))
         self.label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.label)
         dot_row = QHBoxLayout()
@@ -629,7 +639,7 @@ class DynamicCard(QGroupBox):
 
     def set_value(self, text, color):
         self.label.setText(text)
-        self.label.setStyleSheet(f"color: {color}; margin: 16px;")
+        self.label.setStyleSheet(_value_box_style(color))
 
     def set_indicator(self, color):
         self.indicator.setStyleSheet(f"background-color: {color}; border-radius: 6px;")
@@ -643,17 +653,17 @@ class MissionCard(QGroupBox):
 
         self.lbl_waypoint = QLabel("Waypoint: --")
         self.lbl_waypoint.setFont(QFont("Arial", 17, QFont.Bold))
-        self.lbl_waypoint.setStyleSheet("color: #3498db;")
+        self.lbl_waypoint.setStyleSheet(_value_box_style("#3498db"))
         self.lbl_waypoint.setAlignment(Qt.AlignCenter)
 
         self.lbl_distance = QLabel("Distance to WP: --")
         self.lbl_distance.setFont(QFont("Arial", 15))
-        self.lbl_distance.setStyleSheet("color: #EEEEEE;")
+        self.lbl_distance.setStyleSheet(_value_box_style("#2FA084"))
         self.lbl_distance.setAlignment(Qt.AlignCenter)
 
         self.lbl_reached = QLabel("")
         self.lbl_reached.setFont(QFont("Arial", 13))
-        self.lbl_reached.setStyleSheet("color: #2ecc71;")
+        self.lbl_reached.setStyleSheet(_value_box_style("#2ecc71"))
         self.lbl_reached.setAlignment(Qt.AlignCenter)
 
         self.progress = QProgressBar()
