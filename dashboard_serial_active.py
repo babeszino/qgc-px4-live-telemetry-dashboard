@@ -50,6 +50,10 @@ LOG_FIELDS = [
     ("vib_z",             "VIBRATION.vibration_z"),
     ("wp_current",        "MISSION_CURRENT.seq"),
     ("wp_distance_m",     "NAV_CONTROLLER_OUTPUT.wp_dist"),
+    ("motor1_us",         "SERVO_OUTPUT_RAW.servo1_raw"),
+    ("motor2_us",         "SERVO_OUTPUT_RAW.servo2_raw"),
+    ("motor3_us",         "SERVO_OUTPUT_RAW.servo3_raw"),
+    ("motor4_us",         "SERVO_OUTPUT_RAW.servo4_raw"),
 ]
 
 DEFAULT_DYNAMIC_KEYS = [ 
