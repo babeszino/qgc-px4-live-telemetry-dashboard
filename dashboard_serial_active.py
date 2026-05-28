@@ -11,7 +11,9 @@ from PyQt5.QtWidgets import (
     QGridLayout, QTextEdit, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt5.QtCore import QTimer, Qt, pyqtSignal
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QColor
+from PyQt5.QtWidgets import QCompleter
+from PyQt5.QtCore import QStringListModel
 from pymavlink import mavutil
 
 
@@ -569,6 +571,26 @@ class SearchableComboBox(QWidget):
         self.combo = QComboBox()
         self.combo.currentTextChanged.connect(self.currentTextChanged)
 
+        # completer for search boxes
+        self._completer_model = QStringListModel([])
+        self._completer = QCompleter(self._completer_model, self)
+        self._completer.setCaseSensitivity(Qt.CaseInsensitive)
+        self._completer.setCompletionMode(QCompleter.PopupCompletion)
+        self._completer.popup().setStyleSheet("""
+            QListView {
+                background-color: #2FA084;
+                color: #EEEEEE;
+                border: 1px solid #2FA084;
+                border-radius: 4px;
+                font-size: 13px;
+                padding: 2px;
+                selection-background-color: #6FCF94;
+                selection-color: #111844;                                      
+            }
+        """)
+        self._completer.activated.connect(self._on_completion_selected)
+        self.search_box.setCompleter(self._completer)
+
         layout.addWidget(self.search_box)
         layout.addWidget(self.combo)
         self._all_items = []
@@ -583,9 +605,22 @@ class SearchableComboBox(QWidget):
             self.combo.setCurrentText(current)
         self.combo.blockSignals(False)
         self.currentTextChanged.emit(self.combo.currentText())
+    
+    def _on_completion_selected(self, text):
+        self.search_box.blockSignals(True)
+        self.search_box.clear()
+        self.search_box.blockSignals(False)
+        self.combo.blockSignals(True)
+        self.combo.clear()
+        self.combo.addItems(self._all_items)
+        self.combo.blockSignals(False)
+        if text in self._all_items:
+            self.combo.setCurrentText(text)
+            self.currentTextChanged.emit(text)
 
     def update_items(self, items, preserve=None):
         self._all_items = list(items)
+        self._completer_model.setStringList(self._all_items)
         self.combo.blockSignals(True)
         self.combo.clear()
         text = self.search_box.text()
