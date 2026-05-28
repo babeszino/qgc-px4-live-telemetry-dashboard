@@ -237,6 +237,7 @@ class VibrationMonitor(QGroupBox):
 
         clipping_row = len(axes)
         self.lbl_clipping = QLabel("Clipping:  --")
+        self.lbl_clipping.setFixedHeight(32)
         self.lbl_clipping.setStyleSheet("""
             color: #2ecc71;
             font-size: 15px;
@@ -244,7 +245,7 @@ class VibrationMonitor(QGroupBox):
             background-color: #f0fdf6;
             border: 1.5px solid #2ecc71;
             border-radius: 10px;
-            padding: 5px 14px;
+            padding: 2px 10px;
         """)
         layout.addWidget(self.lbl_clipping, clipping_row, 0, 1, 3)
 
@@ -287,7 +288,7 @@ class VibrationMonitor(QGroupBox):
                 background-color: #f0fdf6;
                 border: 1.5px solid {clip_color};
                 border-radius: 10px;
-                padding: 5px 14px;
+                padding: 2px 10px;
             """)
             self.lbl_clipping.setText(f"Clipping:  {int(clipping)}")
         else:
@@ -299,7 +300,7 @@ class VibrationMonitor(QGroupBox):
                 background-color: #f0fdf6;
                 border: 1.5px solid #2ecc71;
                 border-radius: 10px;
-                padding: 5px 14px;
+                padding: 2px 10px;
             """)
 
 
@@ -849,6 +850,7 @@ class Dashboard(QMainWindow):
 
         self.inner_tabs = QTabWidget()
         self.inner_tabs.tabBar().setExpanding(True)
+        self.inner_tabs.setMaximumHeight(280)
         self.inner_tabs.setStyleSheet("""
             QTabWidget::pane { border: 2px solid #2FA084; border-radius: 4px; }
             QTabBar::tab { background: #2FA084; color: #EEEEEE; padding: 6px 22px; font-size: 15px; min-width: 180px; }
