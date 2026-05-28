@@ -60,6 +60,10 @@ COLUMN_HEADERS = {
     "vib_z":          "Vib Z",
     "wp_current":     "Waypoint",
     "wp_distance_m":  "WP Dist",
+    "motor1_us":      "Motor 1",
+    "motor2_us":      "Motor 2",
+    "motor3_us":      "Motor 3",
+    "motor4_us":      "Motor 4",
 }
 
 PLOTTABLE_COLUMNS = {
@@ -76,6 +80,10 @@ PLOTTABLE_COLUMNS = {
     "vib_y":          ("Vib Y",       ""),
     "vib_z":          ("Vib Z",       ""),
     "wp_distance_m":  ("WP Distance", "m"),
+    "motor1_us":      ("Motor 1",     "µs"),
+    "motor2_us":      ("Motor 2",     "µs"),
+    "motor3_us":      ("Motor 3",     "µs"),
+    "motor4_us":      ("Motor 4",     "µs"),
 }
 
 PLOT_COLORS = [
@@ -116,6 +124,8 @@ def format_cell(col, raw):
             v = float(raw)
             return f"{v / 1e7:.6f}" if abs(v) > 1000 else f"{v:.6f}"
         if col == "wp_distance_m":  return f"{float(raw):.1f} m"
+        if col in ("motor1_us", "motor2_us", "motor3_us", "motor4_us"):
+            return f"{int(float(raw))} µs"
         if col == "wp_current":     return str(int(float(raw)))
         if col in ("vib_x", "vib_y", "vib_z"): return f"{float(raw):.3f}"
         if col == "gps_satellites": return str(int(float(raw)))
