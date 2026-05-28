@@ -1,6 +1,7 @@
 import sys
 import csv
 import os
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 import math
 import collections
 from datetime import datetime
@@ -1065,8 +1066,9 @@ class Dashboard(QMainWindow):
             self.lbl_status.setText(f"Error: {e}")
 
     def start_arm_log(self):
-        os.makedirs("logs", exist_ok=True)
-        filename = datetime.now().strftime("logs/armed_%Y-%m-%d_%H-%M-%S.csv")
+        log_dir = os.path.join(SCRIPT_DIR, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        filename = os.path.join(log_dir, datetime.now().strftime("armed_%Y-%m-%d_%H-%M-%S.csv"))
         self.log_file = open(filename, "w", newline="")
         self.log_writer = csv.DictWriter(self.log_file, fieldnames=[f for f, _ in LOG_FIELDS])
         self.log_writer.writeheader()
