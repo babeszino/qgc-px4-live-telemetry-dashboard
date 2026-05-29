@@ -127,7 +127,12 @@ def format_cell(col, raw):
         if col in ("motor1_us", "motor2_us", "motor3_us", "motor4_us"):
             return f"{int(float(raw))} µs"
         if col == "wp_current":     return str(int(float(raw)))
-        if col in ("vib_x", "vib_y", "vib_z"): return f"{float(raw):.3f}"
+
+        # if col in ("vib_x", "vib_y", "vib_z"): return f"{float(raw):.3f}"
+        if col in ("vib_x", "vib_y", "vib_z"):
+            v = float(raw)
+            return f"{v:.2e}" if v < 0.0001 else f"{v:.5f}"
+
         if col == "gps_satellites": return str(int(float(raw)))
     except Exception:
         pass
@@ -686,8 +691,8 @@ class LogViewer(QMainWindow):
         sb.addWidget(self._sep())
 
         sb.addWidget(QLabel("Vibration"))
-        self.t_vib_warn = thresh_row("Warning above:",  "30.0")
-        self.t_vib_crit = thresh_row("Critical above:", "60.0")
+        self.t_vib_warn = thresh_row("Warning above:",  "0.3")
+        self.t_vib_crit = thresh_row("Critical above:", "0.6")
         sb.addWidget(self._sep())
 
         sb.addWidget(QLabel("GPS Satellites"))
@@ -801,9 +806,9 @@ class LogViewer(QMainWindow):
                     vib = abs(float(row[axis]))
                     ax  = axis[-1].upper()
                     if vib > vib_c:
-                        add("CRITICAL", ts, f"High Vibration {ax}", f"{vib:.2f}  (critical > {vib_c})")
+                        add("CRITICAL", ts, f"High Vibration {ax}", f"{vib:.2e}  (critical > {vib_c})")
                     elif vib > vib_w:
-                        add("WARNING",  ts, f"High Vibration {ax}", f"{vib:.2f}  (warning > {vib_w})")
+                        add("WARNING",  ts, f"High Vibration {ax}", f"{vib:.2e}  (warning > {vib_w})")
                 except Exception: pass
 
             try:
