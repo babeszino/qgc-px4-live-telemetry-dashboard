@@ -874,7 +874,7 @@ class LogViewer(QMainWindow):
         lay.setSpacing(10)
 
         sidebar = QGroupBox("Flights to Compare")
-        sidebar.setFixedWidth(280)
+        sidebar.setFixedWidth(320)
         sb = QVBoxLayout(sidebar)
         sb.setSpacing(6)
 
@@ -883,7 +883,7 @@ class LogViewer(QMainWindow):
         self.slots_scroll.setStyleSheet(
             "QScrollArea { border: none; background: transparent; }"
         )
-        self.slots_scroll.setMaximumHeight(260)
+        self.slots_scroll.setMinimumHeight(175)
         slots_container = QWidget()
         self.slots_layout = QVBoxLayout(slots_container)
         self.slots_layout.setSpacing(4)
@@ -970,6 +970,7 @@ class LogViewer(QMainWindow):
         for i, flight in enumerate(self._compare_flights):
             color = FLIGHT_COLORS[i % len(FLIGHT_COLORS)]
             slot = QWidget()
+            slot.setFixedHeight(30)
             row = QHBoxLayout(slot)
             row.setContentsMargins(0, 2, 0, 2)
             row.setSpacing(4)
@@ -979,7 +980,12 @@ class LogViewer(QMainWindow):
             dot.setFixedWidth(18)
 
             if flight["name"]:
-                btn_load = QPushButton(flight["name"])
+                # btn_load = QPushButton(flight["name"])
+                if flight["name"]:
+                    full_name = flight["name"]
+                    display_name = (full_name[:25] + "...") if len(full_name) > 25 else full_name
+                    btn_load = QPushButton(display_name)
+                    btn_load.setToolTip(full_name)
                 btn_load.setStyleSheet(
                     f"background-color: {color}; color: #FDF9FF; "
                     f"padding: 4px 6px; font-size: 12px; text-align: left;"
