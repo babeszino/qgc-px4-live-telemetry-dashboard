@@ -215,7 +215,7 @@ class VibrationMonitor(QGroupBox):
 
             bar = QProgressBar()
             bar.setMinimum(0)
-            bar.setMaximum(60)
+            bar.setMaximum(1000)
             bar.setValue(0)
             bar.setTextVisible(False)
             bar.setFixedHeight(22)
@@ -233,7 +233,7 @@ class VibrationMonitor(QGroupBox):
 
             lbl_val = QLabel("--")
             lbl_val.setStyleSheet("color: #EEEEEE; font-size: 15px;")
-            lbl_val.setFixedWidth(60)
+            lbl_val.setFixedWidth(110)
 
             layout.addWidget(lbl_name, i, 0)
             layout.addWidget(bar,      i, 1)
@@ -265,9 +265,9 @@ class VibrationMonitor(QGroupBox):
                 label.setText("--")
                 bar.setValue(0)
                 continue
-            if val < 15:
+            if val < 0.3:
                 color = "#2ecc71"
-            elif val < 30:
+            elif val < 0.6:
                 color = "#e67e22"
             else:
                 color = "#e74c3c"
@@ -282,8 +282,12 @@ class VibrationMonitor(QGroupBox):
                     border-radius: 2px;
                 }}
             """)
-            bar.setValue(min(60, int(val)))
-            label.setText(f"{val:.1f}")
+
+            bar.setValue(int(min(1.0, val) * 1000))
+            if val < 0.0001:
+                label.setText(f"{val:.2e}")
+            else:
+                label.setText(f"{val:.5f}")
 
         if clipping is not None:
             clip_color = "#e74c3c" if clipping > 0 else "#2ecc71"
